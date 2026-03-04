@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="8dp"
+    android:minWidth="80dp">
+
+    <!-- Arabic Word -->
+    <TextView
+        android:id="@+id/tv_word_arabic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="24sp"
+        android:textDirection="rtl" />
+
+    <!-- Translation -->
+    <TextView
+        android:id="@+id/tv_word_translation"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:maxWidth="100dp" />
+
+    <!-- Position -->
+    <TextView
+        android:id="@+id/tv_word_position"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:layout_marginTop="2dp" />
+
+</LinearLayout>

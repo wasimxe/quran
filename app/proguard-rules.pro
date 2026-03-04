@@ -1,0 +1,2 @@
+-keep class com.tanxe.quran.data.entity.** { *; }
+-keep class com.tanxe.quran.data.dao.** { *; }

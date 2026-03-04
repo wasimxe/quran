@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Al-Quran</string>
+    <string name="tab_read">Quran</string>
+    <string name="tab_search">Search</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Navigation -->
+    <string name="surah">Surah</string>
+    <string name="ayah">Ayah</string>
+    <string name="juz">Juz</string>
+    <string name="page">Page</string>
+    <string name="select_surah">Select Surah</string>
+    <string name="go_to_ayah">Go to Ayah</string>
+
+    <!-- Modes -->
+    <string name="mode_reading">Reading</string>
+    <string name="mode_learning">Learning</string>
+    <string name="mode_translation">Translation</string>
+    <string name="mode_tafseer">Tafseer</string>
+    <string name="mode_wbw">Word by Word</string>
+
+    <!-- Actions -->
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="stop">Stop</string>
+    <string name="previous">Previous</string>
+    <string name="next">Next</string>
+    <string name="random">Random</string>
+    <string name="share">Share</string>
+    <string name="share_ayah">Share Ayah</string>
+    <string name="bookmark">Bookmark</string>
+    <string name="bookmark_added">Bookmark added</string>
+    <string name="bookmark_removed">Bookmark removed</string>
+    <string name="resume">Resume</string>
+    <string name="repeat">Repeat</string>
+    <string name="continuous">Continuous</string>
+    <string name="more">More</string>
+
+    <!-- Search -->
+    <string name="search_hint">Search Quran…</string>
+    <string name="search_all">All</string>
+    <string name="search_arabic">Arabic</string>
+    <string name="search_translation">Translation</string>
+    <string name="search_tafseer">Tafseer</string>
+    <string name="no_results">No results found</string>
+
+    <!-- Settings -->
+    <string name="theme">Theme</string>
+    <string name="language">Language</string>
+    <string name="downloads">Downloads</string>
+    <string name="about">About</string>
+    <string name="font_size">Font Size</string>
+    <string name="arabic_font_size">Arabic Font Size</string>
+    <string name="translation_font_size">Translation Font Size</string>
+    <string name="bookmarks">Bookmarks</string>
+    <string name="translations">Translations</string>
+    <string name="tafseers">Tafseers</string>
+    <string name="word_by_word">Word by Word</string>
+    <string name="audio">Audio</string>
+    <string name="vocabulary_builder">Vocabulary Builder</string>
+    <string name="no_bookmarks">No bookmarks yet</string>
+
+    <!-- Learn Mode -->
+    <string name="learn_title">Vocabulary Builder</string>
+    <string name="learn_known">I Know This</string>
+    <string name="learn_unknown">Don\'t Know</string>
+    <string name="learn_reveal">Reveal</string>
+    <string name="learn_progress">Quran Understanding</string>
+    <string name="learn_scope_quran">Full Quran</string>
+    <string name="learn_scope_surah">Current Surah</string>
+    <string name="learn_all">All Words</string>
+    <string name="learn_known_words">Known</string>
+    <string name="learn_unknown_words">Unknown</string>
+    <string name="learn_word_list">Word List</string>
+    <string name="learn_flashcard">Flashcard</string>
+
+    <!-- Download -->
+    <string name="download">Download</string>
+    <string name="downloading">Downloading…</string>
+    <string name="download_complete">Download complete</string>
+    <string name="download_failed">Download failed</string>
+    <string name="download_translations">Download Translations</string>
+    <string name="download_tafseers">Download Tafseers</string>
+    <string name="download_wbw">Download Word by Word</string>
+    <string name="download_audio">Download Audio</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="not_downloaded">Not downloaded</string>
+    <string name="built_in">Built-in</string>
+    <string name="tap_to_download">Tap to download</string>
+    <string name="delete">Delete</string>
+
+    <!-- Setup -->
+    <string name="welcome">Welcome</string>
+    <string name="select_language">Select your language</string>
+    <string name="continue_text">Continue</string>
+    <string name="loading_data">Loading Quran data…</string>
+
+    <!-- Themes -->
+    <string name="theme_emerald">Emerald Gold</string>
+    <string name="theme_midnight">Midnight Blue</string>
+    <string name="theme_purple">Royal Purple</string>
+    <string name="theme_desert">Desert Sand</string>
+
+    <!-- Bismillah -->
+    <string name="bismillah">بِسْمِ اللَّهِ الرَّحْمَـٰنِ الرَّحِيمِ</string>
+
+    <!-- Download item names -->
+    <string name="trans_jalandhry">Jalandhry</string>
+    <string name="trans_maududi">Maududi</string>
+    <string name="trans_kanzuliman">Kanz-ul-Iman</string>
+    <string name="trans_junagarhi">Junagarhi</string>
+    <string name="trans_qadri">Tahir-ul-Qadri</string>
+    <string name="trans_ahmedali">Ahmed Ali</string>
+    <string name="trans_jawadi">Jawadi</string>
+    <string name="trans_khan">Ahmed Raza Khan</string>
+    <string name="trans_najafi">Najafi</string>
+
+    <string name="tafseer_ibnkathir">Ibn Kathir</string>
+    <string name="tafseer_bayanulquran">Bayan-ul-Quran</string>
+    <string name="tafseer_tazkirulquran">Tazkir-ul-Quran</string>
+    <string name="tafseer_zilal">Fi Zilal-ul-Quran</string>
+    <string name="tafseer_jalalayn">Jalalayn</string>
+    <string name="tafseer_tabari">Tabari</string>
+    <string name="tafseer_qurtubi">Qurtubi</string>
+    <string name="tafseer_baghawi">Baghawi</string>
+    <string name="tafseer_saddi">Saddi</string>
+    <string name="tafseer_muyassar">Muyassar</string>
+    <string name="tafseer_wasit">Al-Wasit</string>
+    <string name="tafseer_tanwir">Tanwir al-Miqbas</string>
+
+    <string name="ayahs_count">%d ayahs</string>
+    <string name="surah_format">%1$d. %2$s</string>
+</resources>

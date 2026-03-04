@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.AlQuran" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/emerald_accent</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/emerald_accent</item>
+        <item name="android:statusBarColor">@color/emerald_bg</item>
+        <item name="android:navigationBarColor">@color/emerald_bg</item>
+    </style>
+
+    <style name="Theme.AlQuran.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="colorPrimary">@color/emerald_accent</item>
+        <item name="android:statusBarColor">@color/emerald_bg</item>
+        <item name="android:navigationBarColor">@color/emerald_bg</item>
+    </style>
+</resources>

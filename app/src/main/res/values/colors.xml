@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Emerald Gold (Default) -->
+    <color name="emerald_bg">#0A2E1F</color>
+    <color name="emerald_surface">#0F3D2A</color>
+    <color name="emerald_accent">#D4AF37</color>
+    <color name="emerald_arabic">#F5D76E</color>
+    <color name="emerald_translation">#C8E6C9</color>
+    <color name="emerald_primary_text">#E8F5E9</color>
+    <color name="emerald_card">#1A4D35</color>
+
+    <!-- Midnight Blue -->
+    <color name="midnight_bg">#0D1117</color>
+    <color name="midnight_surface">#161B22</color>
+    <color name="midnight_accent">#58A6FF</color>
+    <color name="midnight_arabic">#79C0FF</color>
+    <color name="midnight_translation">#C9D1D9</color>
+    <color name="midnight_primary_text">#F0F6FC</color>
+    <color name="midnight_card">#1C2128</color>
+
+    <!-- Royal Purple -->
+    <color name="purple_bg">#1A0A2E</color>
+    <color name="purple_surface">#231242</color>
+    <color name="purple_accent">#BB86FC</color>
+    <color name="purple_arabic">#CF9FFF</color>
+    <color name="purple_translation">#E0D0F0</color>
+    <color name="purple_primary_text">#F5F0FF</color>
+    <color name="purple_card">#2D1B4E</color>
+
+    <!-- Desert Sand -->
+    <color name="desert_bg">#FFF8F0</color>
+    <color name="desert_surface">#FFF0E0</color>
+    <color name="desert_accent">#8B6914</color>
+    <color name="desert_arabic">#5D4037</color>
+    <color name="desert_translation">#4E342E</color>
+    <color name="desert_primary_text">#3E2723</color>
+    <color name="desert_card">#FFECB3</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>

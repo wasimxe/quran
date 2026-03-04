@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/word_freq_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="6dp"
+    android:background="?attr/selectableItemBackground">
+
+    <!-- Known/Unknown toggle -->
+    <ImageButton
+        android:id="@+id/btn_word_toggle"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:scaleType="centerInside"
+        android:padding="4dp"
+        android:contentDescription="Toggle known" />
+
+    <!-- Arabic word -->
+    <TextView
+        android:id="@+id/tv_wf_arabic"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="20sp"
+        android:textDirection="rtl"
+        android:gravity="center_vertical|end"
+        android:layout_marginHorizontal="8dp" />
+
+    <!-- Frequency badge -->
+    <TextView
+        android:id="@+id/tv_wf_frequency"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:background="@drawable/bg_juz_badge"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="2dp"
+        android:layout_marginEnd="8dp" />
+
+    <!-- Translation -->
+    <TextView
+        android:id="@+id/tv_wf_translation"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="13sp"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+</LinearLayout>
