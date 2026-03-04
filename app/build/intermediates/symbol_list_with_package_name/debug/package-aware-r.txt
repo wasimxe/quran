@@ -3871,6 +3871,7 @@ id right_side
 id rounded
 id row_index_key
 id rtl
+id rv_ayahs
 id rv_bookmarks
 id rv_downloads
 id rv_languages
@@ -4044,6 +4045,7 @@ id tv_search_translation
 id tv_select_lang
 id tv_sheet_title
 id tv_surah_ayah_count
+id tv_surah_header
 id tv_surah_name
 id tv_surah_name_ar
 id tv_surah_name_en
@@ -4073,7 +4075,6 @@ id view_tree_lifecycle_owner
 id view_tree_on_back_pressed_dispatcher_owner
 id view_tree_saved_state_registry_owner
 id view_tree_view_model_store_owner
-id viewpager_ayah
 id visible
 id visible_removing_fragment_view_tag
 id west

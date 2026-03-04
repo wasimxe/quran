@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -19,9 +20,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.viewpager2.widget.ViewPager2;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.tanxe.quran.R;
 import com.tanxe.quran.audio.AudioPlayerManager;
@@ -41,8 +42,16 @@ public class ReadingFragment extends Fragment {
     private ThemeManager theme;
     private AudioPlayerManager audioPlayer;
 
-    private ViewPager2 viewPager;
+    private RecyclerView recyclerView;
+    private LinearLayoutManager layoutManager;
     private AyahPagerAdapter pagerAdapter;
+
+    // Pinch-to-zoom
+    private ScaleGestureDetector scaleGestureDetector;
+    private static final float MIN_ARABIC_SP = 16f;
+    private static final float MAX_ARABIC_SP = 60f;
+    private float currentArabicSize;
+    private float currentTransSize;
 
     // Header views
     private TextView tvSurahName, tvAyahCounter, tvJuzBadge;
@@ -88,6 +97,10 @@ public class ReadingFragment extends Fragment {
             urduFont = Typeface.DEFAULT;
         }
 
+        // Init font sizes from prefs
+        currentArabicSize = repository.getArabicFontSize();
+        currentTransSize = repository.getTranslationFontSize();
+
         initViews(view);
         applyTheme();
         loadSurahs();
@@ -98,7 +111,8 @@ public class ReadingFragment extends Fragment {
         currentAyah = pos[1];
         displayMode = repository.getDisplayMode();
 
-        setupViewPager();
+        setupRecyclerView();
+        setupPinchToZoom();
         setupGestures(view);
     }
 
@@ -118,8 +132,8 @@ public class ReadingFragment extends Fragment {
         spinnerSource = view.findViewById(R.id.spinner_source);
         sourceChips = view.findViewById(R.id.source_chips);
 
-        // ViewPager
-        viewPager = view.findViewById(R.id.viewpager_ayah);
+        // RecyclerView
+        recyclerView = view.findViewById(R.id.rv_ayahs);
 
         // Toolbar
         floatingToolbar = view.findViewById(R.id.floating_toolbar);
@@ -168,33 +182,73 @@ public class ReadingFragment extends Fragment {
         btnRepeat.setAlpha(repository.getRepeatMode() ? 1.0f : 0.5f);
     }
 
-    private void setupViewPager() {
+    private void setupRecyclerView() {
+        layoutManager = new LinearLayoutManager(requireContext());
+        recyclerView.setLayoutManager(layoutManager);
+
         pagerAdapter = new AyahPagerAdapter(repository, theme, arabicFont, urduFont);
         pagerAdapter.setLearningMode(isLearningMode);
         pagerAdapter.setDisplayMode(displayMode);
-        viewPager.setAdapter(pagerAdapter);
+        recyclerView.setAdapter(pagerAdapter);
 
-        // Set initial position
+        // Scroll to saved position
         int startPos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
-        viewPager.setCurrentItem(startPos, false);
+        recyclerView.scrollToPosition(startPos);
 
-        // Listen for page changes
-        viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+        // Track scroll to update header
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
-            public void onPageSelected(int position) {
-                int[] sa = AyahPagerAdapter.positionToSurahAyah(position);
-                currentSurah = sa[0];
-                currentAyah = sa[1];
-                updateHeader();
-                repository.saveCurrentPosition(currentSurah, currentAyah);
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                int firstVisible = layoutManager.findFirstVisibleItemPosition();
+                if (firstVisible != RecyclerView.NO_POSITION) {
+                    int[] sa = AyahPagerAdapter.positionToSurahAyah(firstVisible);
+                    if (sa[0] != currentSurah || sa[1] != currentAyah) {
+                        currentSurah = sa[0];
+                        currentAyah = sa[1];
+                        updateHeader();
+                        repository.saveCurrentPosition(currentSurah, currentAyah);
+                    }
+                }
             }
         });
 
         updateHeader();
     }
 
+    private void setupPinchToZoom() {
+        scaleGestureDetector = new ScaleGestureDetector(requireContext(),
+            new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                @Override
+                public boolean onScale(ScaleGestureDetector detector) {
+                    float factor = detector.getScaleFactor();
+                    float newArabic = Math.max(MIN_ARABIC_SP, Math.min(MAX_ARABIC_SP, currentArabicSize * factor));
+                    // Keep proportional ratio
+                    float ratio = currentTransSize / currentArabicSize;
+                    float newTrans = newArabic * ratio;
+
+                    currentArabicSize = newArabic;
+                    currentTransSize = newTrans;
+                    pagerAdapter.updateFontSize(currentArabicSize, currentTransSize);
+                    return true;
+                }
+
+                @Override
+                public void onScaleEnd(ScaleGestureDetector detector) {
+                    // Persist to prefs
+                    repository.setArabicFontSize(currentArabicSize);
+                    repository.setTranslationFontSize(currentTransSize);
+                }
+            });
+
+        recyclerView.setOnTouchListener((v, event) -> {
+            scaleGestureDetector.onTouchEvent(event);
+            // Don't consume if not scaling — let RecyclerView scroll
+            return scaleGestureDetector.isInProgress();
+        });
+    }
+
     private void setupGestures(View view) {
-        // Double-tap handled via GestureDetector on the ViewPager
+        // Double-tap on header to toggle learning mode
         GestureDetector gestureDetector = new GestureDetector(requireContext(),
             new GestureDetector.SimpleOnGestureListener() {
                 @Override
@@ -204,7 +258,6 @@ public class ReadingFragment extends Fragment {
                 }
             });
 
-        // We can't easily intercept ViewPager2 touches directly, so double-tap is on the header
         view.findViewById(R.id.header_bar).setOnTouchListener((v, event) -> {
             gestureDetector.onTouchEvent(event);
             return false;
@@ -334,23 +387,23 @@ public class ReadingFragment extends Fragment {
         currentSurah = surah;
         currentAyah = ayah;
         int pos = AyahPagerAdapter.surahAyahToPosition(surah, ayah);
-        if (viewPager != null) {
-            viewPager.setCurrentItem(pos, true);
+        if (recyclerView != null) {
+            recyclerView.scrollToPosition(pos);
         }
         updateHeader();
     }
 
     private void navigateNext() {
-        int currentPos = viewPager.getCurrentItem();
-        if (currentPos < QuranDataParser.TOTAL_AYAHS - 1) {
-            viewPager.setCurrentItem(currentPos + 1, true);
+        int firstVisible = layoutManager.findFirstVisibleItemPosition();
+        if (firstVisible < QuranDataParser.TOTAL_AYAHS - 1) {
+            recyclerView.smoothScrollToPosition(firstVisible + 1);
         }
     }
 
     private void navigatePrev() {
-        int currentPos = viewPager.getCurrentItem();
-        if (currentPos > 0) {
-            viewPager.setCurrentItem(currentPos - 1, true);
+        int firstVisible = layoutManager.findFirstVisibleItemPosition();
+        if (firstVisible > 0) {
+            recyclerView.smoothScrollToPosition(firstVisible - 1);
         }
     }
 
@@ -423,6 +476,15 @@ public class ReadingFragment extends Fragment {
         boolean repeat = !repository.getRepeatMode();
         repository.setRepeatMode(repeat);
         btnRepeat.setAlpha(repeat ? 1.0f : 0.5f);
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // Save scroll position
+        if (layoutManager != null) {
+            repository.saveCurrentPosition(currentSurah, currentAyah);
+        }
     }
 
     public void applyTheme() {

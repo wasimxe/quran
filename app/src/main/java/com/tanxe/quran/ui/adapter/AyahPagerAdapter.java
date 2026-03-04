@@ -33,6 +33,10 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
     private boolean isLearningMode = false;
     private String displayMode = "translation"; // translation, tafseer, wbw
 
+    // Font sizes for pinch-to-zoom (initialized from prefs)
+    private float arabicFontSize;
+    private float translationFontSize;
+
     // Flat index mapping: position -> (surah, ayah)
     private static final int TOTAL_AYAHS = QuranDataParser.TOTAL_AYAHS;
 
@@ -43,6 +47,8 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         this.arabicFont = arabicFont;
         this.urduFont = urduFont;
         this.executor = repository.getExecutor();
+        this.arabicFontSize = repository.getArabicFontSize();
+        this.translationFontSize = repository.getTranslationFontSize();
     }
 
     public void setLearningMode(boolean learning) {
@@ -65,6 +71,21 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
 
     public String getDisplayMode() {
         return displayMode;
+    }
+
+    /** Update font sizes for pinch-to-zoom. Stores and refreshes all items. */
+    public void updateFontSize(float arabicSp, float transSp) {
+        this.arabicFontSize = arabicSp;
+        this.translationFontSize = transSp;
+        notifyDataSetChanged();
+    }
+
+    public float getArabicFontSize() {
+        return arabicFontSize;
+    }
+
+    public float getTranslationFontSize() {
+        return translationFontSize;
     }
 
     /** Convert flat position (0-6235) to [surah, ayah] */
@@ -110,11 +131,12 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         if (arabicFont != null) holder.tvBismillah.setTypeface(arabicFont);
         holder.dividerBottom.setBackgroundColor(theme.getDividerColor());
 
-        // Font sizes from prefs
-        float arabicSize = repository.getArabicFontSize();
-        float transSize = repository.getTranslationFontSize();
-        holder.tvArabic.setTextSize(arabicSize);
-        holder.tvTranslation.setTextSize(transSize);
+        // Use stored font sizes (updated by pinch gesture)
+        holder.tvArabic.setTextSize(arabicFontSize);
+        holder.tvTranslation.setTextSize(translationFontSize);
+
+        // Surah header styling
+        holder.tvSurahHeader.setTextColor(theme.getAccentColor());
 
         // Load data on background thread
         executor.execute(() -> {
@@ -156,6 +178,15 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
             holder.itemView.post(() -> {
                 holder.tvArabic.setText(ayahData.arabicText);
                 holder.tvAyahMarker.setText("﴿ " + ayah + " ﴾");
+
+                // Surah header: show for ayah 1
+                if (ayah == 1) {
+                    String headerText = surah + ". " + ayahData.surahNameEn + " (" + ayahData.surahNameAr + ")";
+                    holder.tvSurahHeader.setText(headerText);
+                    holder.tvSurahHeader.setVisibility(View.VISIBLE);
+                } else {
+                    holder.tvSurahHeader.setVisibility(View.GONE);
+                }
 
                 // Bismillah: show for ayah 1, except surah 1 (Fatiha) and surah 9 (Tawbah)
                 if (ayah == 1 && surah != 1 && surah != 9) {
@@ -200,7 +231,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
 
     static class AyahViewHolder extends RecyclerView.ViewHolder {
         View container;
-        TextView tvBismillah, tvArabic, tvAyahMarker, tvTranslation;
+        TextView tvSurahHeader, tvBismillah, tvArabic, tvAyahMarker, tvTranslation;
         View dividerTop, dividerBottom;
         View learningContent;
         RecyclerView rvWords;
@@ -208,6 +239,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         AyahViewHolder(@NonNull View itemView) {
             super(itemView);
             container = itemView.findViewById(R.id.ayah_page_container);
+            tvSurahHeader = itemView.findViewById(R.id.tv_surah_header);
             tvBismillah = itemView.findViewById(R.id.tv_bismillah);
             tvArabic = itemView.findViewById(R.id.tv_arabic);
             tvAyahMarker = itemView.findViewById(R.id.tv_ayah_marker);

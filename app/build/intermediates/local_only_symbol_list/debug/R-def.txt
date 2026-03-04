@@ -119,6 +119,7 @@ id progress_bar
 id progress_download
 id progress_learn
 id reading_container
+id rv_ayahs
 id rv_bookmarks
 id rv_downloads
 id rv_languages
@@ -177,6 +178,7 @@ id tv_search_translation
 id tv_select_lang
 id tv_sheet_title
 id tv_surah_ayah_count
+id tv_surah_header
 id tv_surah_name
 id tv_surah_name_ar
 id tv_surah_name_en
@@ -193,7 +195,6 @@ id tv_wf_translation
 id tv_word_arabic
 id tv_word_position
 id tv_word_translation
-id viewpager_ayah
 id word_freq_container
 layout activity_language_setup
 layout activity_main

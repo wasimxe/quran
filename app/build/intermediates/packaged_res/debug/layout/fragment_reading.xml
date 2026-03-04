@@ -169,11 +169,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- ViewPager2 for ayah swiping -->
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewpager_ayah"
+    <!-- Continuous scrolling ayah list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_ayahs"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/spinner_source"
         app:layout_constraintBottom_toTopOf="@id/floating_toolbar"
         app:layout_constraintStart_toStartOf="parent"

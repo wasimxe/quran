@@ -1,96 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ayah_page_container"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="8dp"
+    android:gravity="center_horizontal">
 
+    <!-- Surah header (ayah 1 only) -->
+    <TextView
+        android:id="@+id/tv_surah_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Bismillah header (ayah 1 only, except surah 1 & 9) -->
+    <TextView
+        android:id="@+id/tv_bismillah"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/bismillah"
+        android:textSize="22sp"
+        android:textDirection="rtl"
+        android:gravity="center"
+        android:visibility="gone"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Ornamental divider top -->
+    <View
+        android:id="@+id/divider_top"
+        android:layout_width="200dp"
+        android:layout_height="1dp"
+        android:background="@drawable/divider_ornamental"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone" />
+
+    <!-- Arabic Text -->
+    <TextView
+        android:id="@+id/tv_arabic"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="36sp"
+        android:textDirection="rtl"
+        android:textAlignment="center"
+        android:lineSpacingMultiplier="2.0"
+        android:padding="8dp" />
+
+    <!-- Ayah number marker -->
+    <TextView
+        android:id="@+id/tv_ayah_marker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+
+    <!-- Ornamental divider bottom -->
+    <View
+        android:id="@+id/divider_bottom"
+        android:layout_width="200dp"
+        android:layout_height="1dp"
+        android:background="@drawable/divider_ornamental"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Learning mode content (hidden in reading mode) -->
     <LinearLayout
-        android:id="@+id/ayah_page_container"
+        android:id="@+id/learning_content"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="24dp"
-        android:paddingTop="16dp"
-        android:paddingBottom="60dp"
-        android:gravity="center_horizontal">
+        android:visibility="gone">
 
-        <!-- Bismillah header (ayah 1 only, except surah 1 & 9) -->
+        <!-- Translation/Tafseer Text -->
         <TextView
-            android:id="@+id/tv_bismillah"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/bismillah"
-            android:textSize="22sp"
-            android:textDirection="rtl"
-            android:gravity="center"
-            android:visibility="gone"
-            android:layout_marginBottom="12dp" />
-
-        <!-- Ornamental divider top -->
-        <View
-            android:id="@+id/divider_top"
-            android:layout_width="200dp"
-            android:layout_height="1dp"
-            android:background="@drawable/divider_ornamental"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone" />
-
-        <!-- Arabic Text -->
-        <TextView
-            android:id="@+id/tv_arabic"
+            android:id="@+id/tv_translation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="36sp"
+            android:textSize="18sp"
             android:textDirection="rtl"
-            android:textAlignment="center"
-            android:lineSpacingMultiplier="2.0"
+            android:textAlignment="viewEnd"
+            android:lineSpacingMultiplier="1.6"
             android:padding="8dp" />
 
-        <!-- Ayah number marker -->
-        <TextView
-            android:id="@+id/tv_ayah_marker"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="14sp"
-            android:gravity="center"
-            android:layout_marginTop="8dp" />
-
-        <!-- Ornamental divider bottom -->
-        <View
-            android:id="@+id/divider_bottom"
-            android:layout_width="200dp"
-            android:layout_height="1dp"
-            android:background="@drawable/divider_ornamental"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp" />
-
-        <!-- Learning mode content (hidden in reading mode) -->
-        <LinearLayout
-            android:id="@+id/learning_content"
+        <!-- Word by Word RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_words"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <!-- Translation/Tafseer Text -->
-            <TextView
-                android:id="@+id/tv_translation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:textDirection="rtl"
-                android:textAlignment="viewEnd"
-                android:lineSpacingMultiplier="1.6"
-                android:padding="8dp" />
-
-            <!-- Word by Word RecyclerView -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rv_words"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
-
+            android:visibility="gone"
+            android:layout_marginTop="8dp" />
     </LinearLayout>
-</ScrollView>
+
+</LinearLayout>
