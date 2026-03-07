@@ -79,7 +79,7 @@ public class ReadingFragment extends Fragment {
     private Spinner spinnerSource;
 
     // Toolbar
-    private ImageButton btnPrevious, btnPlay, btnNext, btnRepeat, btnShare, btnRandom;
+    private ImageButton btnPrevious, btnPlay, btnNext, btnRepeat, btnRandom;
     private TextView btnSpeed, tvReciterName;
     private View floatingToolbar;
 
@@ -90,6 +90,8 @@ public class ReadingFragment extends Fragment {
     private String displayMode = "translation"; // arabic, translation, tafseer, wbw
     private boolean isPlaying = false;
     private boolean continuousPlay = false;
+    private int playingSurah = -1;
+    private int playingAyah = -1;
 
     // Reading progress tracking
     private long sessionStartTime = 0;
@@ -197,7 +199,6 @@ public class ReadingFragment extends Fragment {
         btnPlay = view.findViewById(R.id.btn_play);
         btnNext = view.findViewById(R.id.btn_next);
         btnRepeat = view.findViewById(R.id.btn_repeat);
-        btnShare = view.findViewById(R.id.btn_share);
         btnRandom = view.findViewById(R.id.btn_random);
         btnSpeed = view.findViewById(R.id.btn_speed);
         tvReciterName = view.findViewById(R.id.tv_reciter_name);
@@ -237,7 +238,6 @@ public class ReadingFragment extends Fragment {
         btnPlay.setOnClickListener(v -> togglePlay());
         btnPlay.setOnLongClickListener(v -> { showReciterSelector(); return true; });
         btnRepeat.setOnClickListener(v -> toggleRepeat());
-        btnShare.setOnClickListener(v -> shareAyah());
         btnRandom.setOnClickListener(v -> loadRandom());
 
         // Speed button
@@ -460,38 +460,39 @@ public class ReadingFragment extends Fragment {
             public void onPlaybackEnded() {
                 handler.post(() -> {
                     if (continuousPlay || repository.getContinuousPlay()) {
-                        int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
+                        // Use playing position, not scroll position
+                        int pos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
                         if (pos < QuranDataParser.TOTAL_AYAHS - 1) {
                             int nextPos = pos + 1;
                             int[] sa = AyahPagerAdapter.positionToSurahAyah(nextPos);
-                            currentSurah = sa[0];
-                            currentAyah = sa[1];
-                            updateHeader();
-                            recyclerView.smoothScrollToPosition(nextPos);
+                            playingSurah = sa[0];
+                            playingAyah = sa[1];
                             pagerAdapter.setPlayingPosition(nextPos);
-                            audioPlayer.playAyah(currentSurah, currentAyah, repository.getRepeatMode());
+                            audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatMode());
+                            // Scroll to keep playing ayah visible
+                            layoutManager.scrollToPositionWithOffset(nextPos, 0);
                         } else {
-                            isPlaying = false;
-                            btnPlay.setImageResource(R.drawable.ic_play);
-                            pagerAdapter.setPlayingPosition(-1);
+                            stopPlayback();
                         }
                     } else {
-                        isPlaying = false;
-                        btnPlay.setImageResource(R.drawable.ic_play);
-                        pagerAdapter.setPlayingPosition(-1);
+                        stopPlayback();
                     }
                 });
             }
 
             @Override
             public void onError(String message) {
-                handler.post(() -> {
-                    isPlaying = false;
-                    btnPlay.setImageResource(R.drawable.ic_play);
-                    pagerAdapter.setPlayingPosition(-1);
-                });
+                handler.post(() -> stopPlayback());
             }
         });
+    }
+
+    private void stopPlayback() {
+        isPlaying = false;
+        playingSurah = -1;
+        playingAyah = -1;
+        btnPlay.setImageResource(R.drawable.ic_play);
+        pagerAdapter.setPlayingPosition(-1);
     }
 
     private void setupRecyclerView() {
@@ -768,18 +769,18 @@ public class ReadingFragment extends Fragment {
     private void togglePlay() {
         if (isPlaying) {
             audioPlayer.stop();
-            btnPlay.setImageResource(R.drawable.ic_play);
-            isPlaying = false;
-            pagerAdapter.setPlayingPosition(-1);
+            stopPlayback();
         } else {
             continuousPlay = true;
             repository.setContinuousPlay(true);
 
-            audioPlayer.playAyah(currentSurah, currentAyah, repository.getRepeatMode());
+            playingSurah = currentSurah;
+            playingAyah = currentAyah;
+            audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatMode());
             btnPlay.setImageResource(R.drawable.ic_pause);
             isPlaying = true;
 
-            int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
+            int pos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
             pagerAdapter.setPlayingPosition(pos);
         }
     }
@@ -907,6 +908,8 @@ public class ReadingFragment extends Fragment {
                     public void onPlay() {
                         currentSurah = surah;
                         currentAyah = ayah;
+                        playingSurah = surah;
+                        playingAyah = ayah;
                         audioPlayer.playAyah(surah, ayah, repository.getRepeatMode());
                         btnPlay.setImageResource(R.drawable.ic_pause);
                         isPlaying = true;
@@ -1175,7 +1178,6 @@ public class ReadingFragment extends Fragment {
         btnPlay.setColorFilter(iconColor);
         btnNext.setColorFilter(iconColor);
         btnRepeat.setColorFilter(iconColor);
-        btnShare.setColorFilter(iconColor);
         btnRandom.setColorFilter(iconColor);
         btnBookmark.setColorFilter(theme.getAccentColor());
 

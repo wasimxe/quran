@@ -161,28 +161,86 @@ public class MainActivity extends AppCompatActivity {
         searchFragment.searchFor(query);
     }
 
-    /** Auto-download WBW Urdu if not already downloaded or data is corrupt */
+    /** Auto-download defaults in background based on user-selected language */
     private void ensureWbwDownloaded() {
         QuranRepository repo = QuranRepository.getInstance(this);
         repo.saveSelectedWbwLanguage("ur");
+        DownloadManager dm = new DownloadManager(this);
+
         repo.getExecutor().execute(() -> {
-            // Check if WBW data exists and has valid arabic words
+            // Fetch edition catalog if not cached yet
+            if (!repo.isEditionCatalogLoaded()) {
+                try {
+                    repo.fetchAndCacheEditions();
+                    repo.setEditionCatalogLoaded(true);
+                } catch (Exception ignored) {}
+            }
+
+            // Download WBW (Urdu) if needed
             List<com.tanxe.quran.data.dao.WordByWordDao.WordWithTranslation> words =
                     repo.getWordsWithTranslations("ur");
-            boolean needsDownload = (words == null || words.isEmpty());
-            // Also check if arabic words are empty (corrupt data)
-            if (!needsDownload && words.size() == 1 && (words.get(0).arabicWord == null || words.get(0).arabicWord.isEmpty())) {
-                // Data is corrupt — all words have empty arabicWord
+            boolean needsWbw = (words == null || words.isEmpty());
+            if (!needsWbw && words.size() == 1 && (words.get(0).arabicWord == null || words.get(0).arabicWord.isEmpty())) {
                 repo.deleteWbw("ur");
-                needsDownload = true;
+                needsWbw = true;
             }
-            if (needsDownload) {
+            if (needsWbw) {
                 repo.setDownloadState("wbw.ur", "none");
-                DownloadManager dm = new DownloadManager(MainActivity.this);
-                dm.downloadWordByWord("ur", status -> {
-                    // Silent background download
-                });
+                dm.downloadWordByWord("ur", status -> { /* silent */ });
+            }
+
+            // Download default translation based on language
+            String lang = repo.getLanguage();
+            String defaultTranslation = getDefaultTranslation(lang);
+            if (defaultTranslation != null && !"ur.jalandhry".equals(defaultTranslation)) {
+                List<String> existing = repo.getAvailableTranslations();
+                if (existing == null || !existing.contains(defaultTranslation)) {
+                    repo.saveSelectedTranslation(defaultTranslation);
+                    dm.downloadTranslation(defaultTranslation, lang, status -> { /* silent */ });
+                }
+            }
+
+            // Download default tafseer based on language
+            String defaultTafseer = getDefaultTafseer(lang);
+            if (defaultTafseer != null) {
+                List<String> existing = repo.getAvailableTafseers();
+                if (existing == null || !existing.contains(defaultTafseer)) {
+                    repo.saveSelectedTafseer(defaultTafseer);
+                    dm.downloadTafseer(defaultTafseer, lang, status -> { /* silent */ });
+                }
+            }
+
+            // Download audio for first few surahs in background
+            String reciter = repo.getSelectedReciter();
+            if (reciter == null || reciter.isEmpty()) reciter = "Alafasy_128kbps";
+            for (int surah = 1; surah <= 114; surah++) {
+                dm.downloadAudioForSurah(surah, reciter, status -> { /* silent */ });
             }
         });
+    }
+
+    private static String getDefaultTranslation(String lang) {
+        switch (lang) {
+            case "ur": return "ur.jalandhry"; // built-in
+            case "en": return "en.sahih";
+            case "ar": return "ar.muyassar";
+            case "tr": return "tr.ates";
+            case "bn": return "bn.bengali";
+            case "fa": return "fa.makarem";
+            case "id": return "id.indonesian";
+            case "fr": return "fr.hamidullah";
+            default: return "en.sahih";
+        }
+    }
+
+    private static String getDefaultTafseer(String lang) {
+        switch (lang) {
+            case "ur": return "ur.maududi";
+            case "en": return "en.jalalayn";
+            case "ar": return "ar.jalalayn";
+            case "tr": return null;
+            case "bn": return null;
+            default: return "en.jalalayn";
+        }
     }
 }
