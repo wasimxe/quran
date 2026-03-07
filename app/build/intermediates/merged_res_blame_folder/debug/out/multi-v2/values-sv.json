@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.tanxe.quran.app-mergeDebugResources-45:/values-sv/values-sv.xml",
+            "outputFile": "com.tanxe.quran.app-mergeDebugResources-49:/values-sv/values-sv.xml",
             "map": [
                 {
                     "source": "C:\\Users\\TanxeStudio\\.gradle\\caches\\transforms-3\\ddfcbdb61819eca75af067343c5e2292\\transformed\\media3-session-1.2.1\\res\\values-sv\\values-sv.xml",

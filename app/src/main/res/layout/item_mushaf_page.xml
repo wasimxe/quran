@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mushaf_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
+
+    <!-- Surah header -->
+    <TextView
+        android:id="@+id/tv_surah_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Bismillah -->
+    <TextView
+        android:id="@+id/tv_bismillah"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/bismillah"
+        android:textSize="24sp"
+        android:textDirection="rtl"
+        android:gravity="center"
+        android:layout_gravity="center_horizontal"
+        android:visibility="gone"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Divider -->
+    <View
+        android:id="@+id/divider_top"
+        android:layout_width="200dp"
+        android:layout_height="1dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/divider_ornamental"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone" />
+
+    <!-- Continuous Arabic text with inline ayah markers -->
+    <TextView
+        android:id="@+id/tv_mushaf_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="28sp"
+        android:textDirection="rtl"
+        android:textAlignment="viewStart"
+        android:justificationMode="inter_word"
+        android:lineSpacingMultiplier="1.0"
+        android:padding="4dp" />
+
+    <!-- Bottom divider -->
+    <View
+        android:id="@+id/divider_bottom"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@drawable/divider_ornamental"
+        android:layout_marginTop="12dp" />
+
+</LinearLayout>

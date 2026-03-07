@@ -36,6 +36,24 @@
     <color name="desert_primary_text">#3E2723</color>
     <color name="desert_card">#FFECB3</color>
 
+    <!-- AMOLED Black -->
+    <color name="amoled_bg">#000000</color>
+    <color name="amoled_surface">#0A0A0A</color>
+    <color name="amoled_accent">#FFD700</color>
+    <color name="amoled_arabic">#FFFFFF</color>
+    <color name="amoled_translation">#B0B0B0</color>
+    <color name="amoled_primary_text">#E0E0E0</color>
+    <color name="amoled_card">#121212</color>
+
+    <!-- Ocean Teal -->
+    <color name="ocean_bg">#0A1929</color>
+    <color name="ocean_surface">#0D2137</color>
+    <color name="ocean_accent">#00BCD4</color>
+    <color name="ocean_arabic">#4DD0E1</color>
+    <color name="ocean_translation">#B2EBF2</color>
+    <color name="ocean_primary_text">#E0F7FA</color>
+    <color name="ocean_card">#132F4C</color>
+
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
 </resources>

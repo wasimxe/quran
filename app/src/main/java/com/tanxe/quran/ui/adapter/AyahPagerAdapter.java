@@ -30,14 +30,23 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
     private final Typeface urduFont;
     private final ExecutorService executor;
 
-    private boolean isLearningMode = false;
-    private String displayMode = "translation"; // translation, tafseer, wbw
+    // Display modes: "arabic", "translation", "tafseer", "wbw"
+    private String displayMode = "translation";
 
-    // Font sizes for pinch-to-zoom (initialized from prefs)
+    /** Callback for long-press on ayah */
+    public interface OnAyahLongPressListener {
+        void onAyahLongPress(int surah, int ayah, int position);
+    }
+
+    private OnAyahLongPressListener longPressListener;
+
+    // Font sizes for pinch-to-zoom
     private float arabicFontSize;
     private float translationFontSize;
 
-    // Flat index mapping: position -> (surah, ayah)
+    // Currently playing position for highlighting
+    private int playingPosition = -1;
+
     private static final int TOTAL_AYAHS = QuranDataParser.TOTAL_AYAHS;
 
     public AyahPagerAdapter(QuranRepository repository, ThemeManager theme,
@@ -49,17 +58,16 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         this.executor = repository.getExecutor();
         this.arabicFontSize = repository.getArabicFontSize();
         this.translationFontSize = repository.getTranslationFontSize();
+        setHasStableIds(true);
     }
 
-    public void setLearningMode(boolean learning) {
-        if (this.isLearningMode != learning) {
-            this.isLearningMode = learning;
-            notifyDataSetChanged();
-        }
+    public void setLongPressListener(OnAyahLongPressListener listener) {
+        this.longPressListener = listener;
     }
 
-    public boolean isLearningMode() {
-        return isLearningMode;
+    @Override
+    public long getItemId(int position) {
+        return position;
     }
 
     public void setDisplayMode(String mode) {
@@ -73,20 +81,32 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         return displayMode;
     }
 
-    /** Update font sizes for pinch-to-zoom. Stores and refreshes all items. */
+    // Keep for backward compat — no-ops
+    public void setLearningMode(boolean learning) {}
+    public boolean isLearningMode() { return false; }
+    public void setShowTranslation(boolean show) {
+        setDisplayMode(show ? "translation" : "arabic");
+    }
+    public boolean isShowTranslation() { return !"arabic".equals(displayMode); }
+
     public void updateFontSize(float arabicSp, float transSp) {
         this.arabicFontSize = arabicSp;
         this.translationFontSize = transSp;
         notifyDataSetChanged();
     }
 
-    public float getArabicFontSize() {
-        return arabicFontSize;
+    public float getArabicFontSize() { return arabicFontSize; }
+    public float getTranslationFontSize() { return translationFontSize; }
+
+    /** Set the currently-playing position and highlight it */
+    public void setPlayingPosition(int position) {
+        int oldPos = playingPosition;
+        playingPosition = position;
+        if (oldPos >= 0) notifyItemChanged(oldPos);
+        if (position >= 0) notifyItemChanged(position);
     }
 
-    public float getTranslationFontSize() {
-        return translationFontSize;
-    }
+    public int getPlayingPosition() { return playingPosition; }
 
     /** Convert flat position (0-6235) to [surah, ayah] */
     public static int[] positionToSurahAyah(int position) {
@@ -97,7 +117,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
             }
             remaining -= QuranDataParser.SURAH_AYAH_COUNT[s];
         }
-        return new int[]{114, 6}; // fallback: last ayah
+        return new int[]{114, 6};
     }
 
     /** Convert (surah, ayah) to flat position */
@@ -121,65 +141,91 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         int[] sa = positionToSurahAyah(position);
         int surah = sa[0];
         int ayah = sa[1];
+        String mode = this.displayMode; // capture for background thread
 
-        // Apply theme to container
-        holder.container.setBackgroundColor(theme.getBackgroundColor());
-        holder.tvArabic.setTextColor(theme.getArabicTextColor());
+        // Apply theme
+        boolean isPlayingItem = (position == playingPosition);
+        holder.container.setBackgroundColor(isPlayingItem ? theme.getPlayingAyahBg() : theme.getBackgroundColor());
+        holder.tvArabic.setTextColor(isPlayingItem ? theme.getActiveAyahTextColor() : theme.getArabicTextColor());
         holder.tvArabic.setTypeface(arabicFont);
         holder.tvAyahMarker.setTextColor(theme.getSecondaryTextColor());
         holder.tvBismillah.setTextColor(theme.getAccentColor());
         if (arabicFont != null) holder.tvBismillah.setTypeface(arabicFont);
         holder.dividerBottom.setBackgroundColor(theme.getDividerColor());
+        holder.dividerTop.setBackgroundColor(theme.getDividerColor());
+        holder.tvSurahHeader.setTextColor(theme.getAccentColor());
 
-        // Use stored font sizes (updated by pinch gesture)
+        // Font sizes
         holder.tvArabic.setTextSize(arabicFontSize);
         holder.tvTranslation.setTextSize(translationFontSize);
+        holder.tvExtraContent.setTextSize(translationFontSize);
 
-        // Surah header styling
-        holder.tvSurahHeader.setTextColor(theme.getAccentColor());
+        // Reset text selectability on rebind (may have been enabled by "Select Text" action)
+        holder.tvArabic.setTextIsSelectable(false);
+        holder.tvTranslation.setTextIsSelectable(false);
+        holder.tvExtraContent.setTextIsSelectable(false);
+
+        // Long press listener
+        holder.container.setOnLongClickListener(v -> {
+            if (longPressListener != null) {
+                longPressListener.onAyahLongPress(surah, ayah, position);
+                return true;
+            }
+            return false;
+        });
 
         // Load data on background thread
         executor.execute(() -> {
             Ayah ayahData = repository.getAyah(surah, ayah);
             if (ayahData == null) return;
 
-            String secondaryText = "";
+            // Load content based on display mode
+            String contentText = "";
+            String tafseerText = "";
             List<WordByWord> words = null;
 
-            if (isLearningMode) {
-                switch (displayMode) {
-                    case "translation":
-                        String edition = repository.getSelectedTranslation();
-                        if ("ur.jalandhry".equals(edition)) {
-                            secondaryText = ayahData.defaultTranslation;
-                        } else {
-                            Translation trans = repository.getTranslation(surah, ayah, edition);
-                            secondaryText = trans != null ? trans.text : ayahData.defaultTranslation;
-                        }
-                        break;
-                    case "tafseer":
-                        String tafseerEdition = repository.getSelectedTafseer();
-                        Tafseer tafseer = repository.getTafseer(surah, ayah, tafseerEdition);
-                        secondaryText = tafseer != null ? tafseer.text : "Tafseer not downloaded";
-                        break;
-                    case "wbw":
-                        String wbwLang = repository.getSelectedWbwLanguage();
-                        words = repository.getWords(surah, ayah, wbwLang);
-                        if (words == null || words.isEmpty()) {
-                            secondaryText = "Word by word data not downloaded";
-                        }
-                        break;
-                }
+            switch (mode) {
+                case "arabic":
+                    // No extra content needed
+                    break;
+                case "translation":
+                    String edition = repository.getSelectedTranslation();
+                    if ("ur.jalandhry".equals(edition)) {
+                        contentText = ayahData.defaultTranslation;
+                    } else {
+                        Translation trans = repository.getTranslation(surah, ayah, edition);
+                        contentText = trans != null ? trans.text : ayahData.defaultTranslation;
+                    }
+                    break;
+                case "tafseer":
+                    // Load translation first
+                    String transEdition = repository.getSelectedTranslation();
+                    if ("ur.jalandhry".equals(transEdition)) {
+                        contentText = ayahData.defaultTranslation;
+                    } else {
+                        Translation trans = repository.getTranslation(surah, ayah, transEdition);
+                        contentText = trans != null ? trans.text : ayahData.defaultTranslation;
+                    }
+                    // Then load tafseer
+                    String tafseerEdition = repository.getSelectedTafseer();
+                    Tafseer tafseer = repository.getTafseer(surah, ayah, tafseerEdition);
+                    tafseerText = tafseer != null ? tafseer.text : "Tafseer not downloaded — go to Library to download";
+                    break;
+                case "wbw":
+                    String wbwLang = repository.getSelectedWbwLanguage();
+                    words = repository.getWords(surah, ayah, wbwLang);
+                    break;
             }
 
-            String finalText = secondaryText;
+            String finalContentText = contentText;
+            String finalTafseerText = tafseerText;
             List<WordByWord> finalWords = words;
 
             holder.itemView.post(() -> {
                 holder.tvArabic.setText(ayahData.arabicText);
-                holder.tvAyahMarker.setText("﴿ " + ayah + " ﴾");
+                holder.tvAyahMarker.setText("\uFD3E " + ayah + " \uFD3F");
 
-                // Surah header: show for ayah 1
+                // Surah header
                 if (ayah == 1) {
                     String headerText = surah + ". " + ayahData.surahNameEn + " (" + ayahData.surahNameAr + ")";
                     holder.tvSurahHeader.setText(headerText);
@@ -188,7 +234,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
                     holder.tvSurahHeader.setVisibility(View.GONE);
                 }
 
-                // Bismillah: show for ayah 1, except surah 1 (Fatiha) and surah 9 (Tawbah)
+                // Bismillah
                 if (ayah == 1 && surah != 1 && surah != 9) {
                     holder.tvBismillah.setVisibility(View.VISIBLE);
                     holder.dividerTop.setVisibility(View.VISIBLE);
@@ -197,31 +243,97 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
                     holder.dividerTop.setVisibility(View.GONE);
                 }
 
-                // Learning mode content
-                if (isLearningMode) {
+                // Content area: depends on display mode
+                if ("arabic".equals(mode)) {
+                    // Arabic only - hide all content below
+                    holder.tvTranslation.setVisibility(View.GONE);
+                    holder.learningContent.setVisibility(View.GONE);
+                } else if ("translation".equals(mode)) {
+                    // Translation text
+                    holder.tvTranslation.setVisibility(View.VISIBLE);
+                    holder.tvTranslation.setText(finalContentText);
+                    holder.tvTranslation.setTextColor(theme.getTranslationTextColor());
+                    applyTranslationFont(holder.tvTranslation);
+                    holder.learningContent.setVisibility(View.GONE);
+                } else if ("tafseer".equals(mode)) {
+                    // Translation first
+                    holder.tvTranslation.setVisibility(View.VISIBLE);
+                    holder.tvTranslation.setText(finalContentText);
+                    holder.tvTranslation.setTextColor(theme.getTranslationTextColor());
+                    applyTranslationFont(holder.tvTranslation);
+                    // Tafseer below
                     holder.learningContent.setVisibility(View.VISIBLE);
-
-                    if ("wbw".equals(displayMode) && finalWords != null && !finalWords.isEmpty()) {
-                        holder.tvTranslation.setVisibility(View.GONE);
+                    holder.rvWords.setVisibility(View.GONE);
+                    holder.tvExtraContent.setVisibility(View.VISIBLE);
+                    holder.tvExtraContent.setText(finalTafseerText);
+                    holder.tvExtraContent.setTextColor(theme.getSecondaryTextColor());
+                    applyTafseerFont(holder.tvExtraContent);
+                    if (holder.tvExtraLabel != null) {
+                        holder.tvExtraLabel.setVisibility(View.VISIBLE);
+                        holder.tvExtraLabel.setText("Tafseer");
+                        holder.tvExtraLabel.setTextColor(theme.getAccentColor());
+                    }
+                } else if ("wbw".equals(mode)) {
+                    // Word by word
+                    holder.tvTranslation.setVisibility(View.GONE);
+                    if (finalWords != null && !finalWords.isEmpty()) {
+                        holder.learningContent.setVisibility(View.VISIBLE);
+                        holder.tvExtraContent.setVisibility(View.GONE);
                         holder.rvWords.setVisibility(View.VISIBLE);
                         holder.rvWords.setLayoutManager(new GridLayoutManager(holder.itemView.getContext(), 4));
-                        holder.rvWords.setAdapter(new WordAdapter(finalWords, theme, arabicFont));
-                    } else {
-                        holder.tvTranslation.setVisibility(View.VISIBLE);
-                        holder.rvWords.setVisibility(View.GONE);
-                        holder.tvTranslation.setText(finalText);
-                        holder.tvTranslation.setTextColor(theme.getTranslationTextColor());
-
-                        String lang = repository.getLanguage();
-                        if ("ur".equals(lang) || "fa".equals(lang)) {
-                            holder.tvTranslation.setTypeface(urduFont);
+                        holder.rvWords.setAdapter(new WordAdapter(finalWords, theme, arabicFont, arabicFontSize, translationFontSize));
+                        if (holder.tvExtraLabel != null) {
+                            holder.tvExtraLabel.setVisibility(View.GONE);
                         }
+                    } else {
+                        holder.learningContent.setVisibility(View.VISIBLE);
+                        holder.tvExtraContent.setVisibility(View.VISIBLE);
+                        holder.rvWords.setVisibility(View.GONE);
+                        holder.tvExtraContent.setText("Word by Word not downloaded — go to Library to download");
+                        holder.tvExtraContent.setTextColor(theme.getSecondaryTextColor());
+                        if (holder.tvExtraLabel != null) holder.tvExtraLabel.setVisibility(View.GONE);
                     }
+                }
+
+                // Ruku end marker
+                if (com.tanxe.quran.util.RukuData.isRukuEnd(surah, ayah)) {
+                    int surahRuku = com.tanxe.quran.util.RukuData.getSurahRukuNumber(surah, ayah);
+                    int juzRuku = com.tanxe.quran.util.RukuData.getJuzRukuNumber(surah, ayah);
+                    String lang = repository.getLanguage();
+                    String ruku = com.tanxe.quran.util.Localization.get(lang, com.tanxe.quran.util.Localization.RUKU);
+                    String surahL = com.tanxe.quran.util.Localization.get(lang, com.tanxe.quran.util.Localization.SURAH);
+                    String juzL = com.tanxe.quran.util.Localization.get(lang, com.tanxe.quran.util.Localization.JUZ);
+                    holder.tvRukuMarker.setVisibility(View.VISIBLE);
+                    holder.tvRukuMarker.setText("\u2500\u2500  \u06DC " + surahL + " " + ruku + " " + surahRuku
+                            + " \u2022 " + juzL + " " + ruku + " " + juzRuku + "  \u2500\u2500");
+                    holder.tvRukuMarker.setTextColor(theme.getAccentColor());
                 } else {
-                    holder.learningContent.setVisibility(View.GONE);
+                    holder.tvRukuMarker.setVisibility(View.GONE);
                 }
             });
         });
+    }
+
+    private void applyTranslationFont(TextView tv) {
+        String lang = repository.getLanguage();
+        String transEdition = repository.getSelectedTranslation();
+        if (transEdition.startsWith("ur.") || "ur".equals(lang) || "fa".equals(lang)) {
+            tv.setTypeface(urduFont);
+        } else {
+            tv.setTypeface(Typeface.DEFAULT);
+        }
+    }
+
+    private void applyTafseerFont(TextView tv) {
+        String lang = repository.getLanguage();
+        String tafseerEdition = repository.getSelectedTafseer();
+        if (tafseerEdition != null && (tafseerEdition.contains(".ur.") || tafseerEdition.startsWith("ur.") || tafseerEdition.contains("urdu"))) {
+            tv.setTypeface(urduFont);
+        } else if ("ur".equals(lang) || "fa".equals(lang)) {
+            tv.setTypeface(urduFont);
+        } else {
+            tv.setTypeface(Typeface.DEFAULT);
+        }
     }
 
     @Override
@@ -232,6 +344,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
     static class AyahViewHolder extends RecyclerView.ViewHolder {
         View container;
         TextView tvSurahHeader, tvBismillah, tvArabic, tvAyahMarker, tvTranslation;
+        TextView tvExtraLabel, tvExtraContent, tvRukuMarker;
         View dividerTop, dividerBottom;
         View learningContent;
         RecyclerView rvWords;
@@ -244,6 +357,9 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
             tvArabic = itemView.findViewById(R.id.tv_arabic);
             tvAyahMarker = itemView.findViewById(R.id.tv_ayah_marker);
             tvTranslation = itemView.findViewById(R.id.tv_translation);
+            tvExtraLabel = itemView.findViewById(R.id.tv_extra_label);
+            tvExtraContent = itemView.findViewById(R.id.tv_extra_content);
+            tvRukuMarker = itemView.findViewById(R.id.tv_ruku_marker);
             dividerTop = itemView.findViewById(R.id.divider_top);
             dividerBottom = itemView.findViewById(R.id.divider_bottom);
             learningContent = itemView.findViewById(R.id.learning_content);

@@ -8,6 +8,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.splashscreen.SplashScreen;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -17,6 +18,7 @@ import com.tanxe.quran.MainActivity;
 import com.tanxe.quran.R;
 import com.tanxe.quran.data.entity.Ayah;
 import com.tanxe.quran.data.repository.QuranRepository;
+import com.tanxe.quran.download.DownloadManager;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.ui.adapter.LanguageAdapter;
 import com.tanxe.quran.util.QuranDataParser;
@@ -33,6 +35,7 @@ public class LanguageSetupActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
 
         repository = QuranRepository.getInstance(this);
@@ -125,6 +128,37 @@ public class LanguageSetupActivity extends AppCompatActivity {
 
             repository.setDataLoaded(true);
             repository.setFirstRun(false);
+
+            // Initialize reciter catalog and fetch edition catalog in background
+            runOnUiThread(() -> tvLoading.setText("Setting up library..."));
+            repository.initReciters();
+            try {
+                repository.fetchAndCacheEditions();
+                repository.setEditionCatalogLoaded(true);
+            } catch (Exception e) {
+                // Non-fatal: catalog can be fetched later from Library tab
+            }
+
+            // Auto-download Urdu word-by-word data for Learn Mode
+            runOnUiThread(() -> tvLoading.setText("Downloading word-by-word data..."));
+            repository.saveSelectedWbwLanguage("ur");
+            DownloadManager dm = new DownloadManager(LanguageSetupActivity.this);
+            final boolean[] wbwDone = {false};
+            dm.downloadWordByWord("ur", status -> {
+                runOnUiThread(() -> tvLoading.setText(status));
+                if (status.startsWith("Complete") || status.startsWith("Failed")) {
+                    synchronized (wbwDone) {
+                        wbwDone[0] = true;
+                        wbwDone.notify();
+                    }
+                }
+            });
+            // Wait for WBW download to finish
+            synchronized (wbwDone) {
+                while (!wbwDone[0]) {
+                    try { wbwDone.wait(1000); } catch (InterruptedException ignored) {}
+                }
+            }
 
             runOnUiThread(this::startMainActivity);
         });

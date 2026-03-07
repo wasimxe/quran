@@ -19,11 +19,16 @@ public class WordAdapter extends RecyclerView.Adapter<WordAdapter.ViewHolder> {
     private final List<WordByWord> words;
     private final ThemeManager theme;
     private final Typeface arabicFont;
+    private final float arabicFontSize;
+    private final float translationFontSize;
 
-    public WordAdapter(List<WordByWord> words, ThemeManager theme, Typeface arabicFont) {
+    public WordAdapter(List<WordByWord> words, ThemeManager theme, Typeface arabicFont,
+                       float arabicFontSize, float translationFontSize) {
         this.words = words;
         this.theme = theme;
         this.arabicFont = arabicFont;
+        this.arabicFontSize = arabicFontSize;
+        this.translationFontSize = translationFontSize;
     }
 
     @NonNull
@@ -38,7 +43,9 @@ public class WordAdapter extends RecyclerView.Adapter<WordAdapter.ViewHolder> {
         WordByWord word = words.get(position);
         holder.tvArabic.setText(word.arabicWord);
         holder.tvArabic.setTypeface(arabicFont);
+        holder.tvArabic.setTextSize(arabicFontSize * 0.7f);
         holder.tvTranslation.setText(word.translation);
+        holder.tvTranslation.setTextSize(translationFontSize * 0.7f);
         holder.tvPosition.setText(String.valueOf(word.wordPosition));
 
         holder.tvArabic.setTextColor(theme.getArabicTextColor());

@@ -22,25 +22,42 @@ import java.util.Set;
 public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdapter.ViewHolder> {
 
     public interface OnWordAction {
-        void onToggleKnown(WordByWordDao.WordFrequency word, boolean markKnown);
+        void onToggleKnown(WordByWordDao.WordWithTranslation word, boolean markKnown);
     }
 
-    private List<WordByWordDao.WordFrequency> allWords;
-    private List<WordByWordDao.WordFrequency> filteredWords;
+    public interface OnWordClick {
+        void onWordSelected(WordByWordDao.WordWithTranslation word, int index);
+    }
+
+    private List<WordByWordDao.WordWithTranslation> allWords;
+    private List<WordByWordDao.WordWithTranslation> filteredWords;
     private final ThemeManager theme;
     private final Typeface arabicFont;
-    private final OnWordAction listener;
+    private final OnWordAction actionListener;
+    private OnWordClick clickListener;
     private final Set<String> knownWords;
     private String filter = "all"; // all, known, unknown
+    private int selectedIndex = -1;
 
-    public WordFrequencyAdapter(List<WordByWordDao.WordFrequency> words, Set<String> knownWords,
+    public WordFrequencyAdapter(List<WordByWordDao.WordWithTranslation> words, Set<String> knownWords,
                                 ThemeManager theme, Typeface arabicFont, OnWordAction listener) {
         this.allWords = words;
         this.filteredWords = new ArrayList<>(words);
         this.knownWords = knownWords != null ? knownWords : new HashSet<>();
         this.theme = theme;
         this.arabicFont = arabicFont;
-        this.listener = listener;
+        this.actionListener = listener;
+    }
+
+    public void setClickListener(OnWordClick listener) {
+        this.clickListener = listener;
+    }
+
+    public void setSelectedIndex(int index) {
+        int oldSelected = selectedIndex;
+        selectedIndex = index;
+        if (oldSelected >= 0 && oldSelected < filteredWords.size()) notifyItemChanged(oldSelected);
+        if (index >= 0 && index < filteredWords.size()) notifyItemChanged(index);
     }
 
     public void setFilter(String filter) {
@@ -50,7 +67,7 @@ public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdap
 
     private void applyFilter() {
         filteredWords.clear();
-        for (WordByWordDao.WordFrequency w : allWords) {
+        for (WordByWordDao.WordWithTranslation w : allWords) {
             boolean isKnown = knownWords.contains(w.arabicWord);
             if ("all".equals(filter) ||
                 ("known".equals(filter) && isKnown) ||
@@ -61,36 +78,37 @@ public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdap
         notifyDataSetChanged();
     }
 
+    public void updateWords(List<WordByWordDao.WordWithTranslation> words) {
+        this.allWords = words;
+        applyFilter();
+    }
+
     public void toggleKnown(String word, boolean known) {
-        if (known) {
-            knownWords.add(word);
-        } else {
-            knownWords.remove(word);
-        }
+        if (known) knownWords.add(word); else knownWords.remove(word);
         applyFilter();
     }
 
     public int getTotalFrequency() {
         int total = 0;
-        for (WordByWordDao.WordFrequency w : allWords) total += w.frequency;
+        for (WordByWordDao.WordWithTranslation w : allWords) total += w.frequency;
         return total;
     }
 
     public int getKnownFrequency() {
         int total = 0;
-        for (WordByWordDao.WordFrequency w : allWords) {
+        for (WordByWordDao.WordWithTranslation w : allWords) {
             if (knownWords.contains(w.arabicWord)) total += w.frequency;
         }
         return total;
     }
 
-    public int getKnownCount() {
-        return knownWords.size();
+    public int getKnownCount() { return knownWords.size(); }
+    public int getTotalCount() { return allWords.size(); }
+    public WordByWordDao.WordWithTranslation getWordAt(int filteredIndex) {
+        if (filteredIndex >= 0 && filteredIndex < filteredWords.size()) return filteredWords.get(filteredIndex);
+        return null;
     }
-
-    public int getTotalCount() {
-        return allWords.size();
-    }
+    public int getFilteredCount() { return filteredWords.size(); }
 
     @NonNull
     @Override
@@ -101,7 +119,7 @@ public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdap
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        WordByWordDao.WordFrequency word = filteredWords.get(position);
+        WordByWordDao.WordWithTranslation word = filteredWords.get(position);
         boolean isKnown = knownWords.contains(word.arabicWord);
 
         holder.tvArabic.setText(word.arabicWord);
@@ -111,22 +129,30 @@ public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdap
         holder.tvFrequency.setText("×" + word.frequency);
         holder.tvFrequency.setTextColor(theme.getAccentColor());
 
-        // We don't have translation in WordFrequency, so show frequency info
-        holder.tvTranslation.setText(isKnown ? "✓ Known" : "");
+        // Show translation
+        holder.tvTranslation.setText(word.translation != null ? word.translation : "");
         holder.tvTranslation.setTextColor(isKnown ? theme.getDownloadedColor() : theme.getSecondaryTextColor());
 
-        // Toggle button: X means "mark as known" (remove from unknown)
+        // Toggle button
         holder.btnToggle.setImageResource(isKnown ? R.drawable.ic_check_circle : R.drawable.ic_bookmark);
         holder.btnToggle.setColorFilter(isKnown ? theme.getDownloadedColor() : theme.getSecondaryTextColor());
 
         holder.btnToggle.setOnClickListener(v -> {
             boolean newState = !isKnown;
-            listener.onToggleKnown(word, newState);
+            if (actionListener != null) actionListener.onToggleKnown(word, newState);
             toggleKnown(word.arabicWord, newState);
         });
 
-        holder.container.setBackgroundColor(position % 2 == 0 ?
-            theme.getBackgroundColor() : theme.getCardColor());
+        // Highlight selected
+        boolean isSelected = position == selectedIndex;
+        holder.container.setBackgroundColor(isSelected ? theme.getAccentColor() & 0x33FFFFFF :
+            (position % 2 == 0 ? theme.getBackgroundColor() : theme.getCardColor()));
+
+        // Click to select word and show detail
+        holder.container.setOnClickListener(v -> {
+            setSelectedIndex(position);
+            if (clickListener != null) clickListener.onWordSelected(word, position);
+        });
     }
 
     @Override

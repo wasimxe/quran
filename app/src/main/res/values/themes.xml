@@ -15,4 +15,12 @@
         <item name="android:statusBarColor">@color/emerald_bg</item>
         <item name="android:navigationBarColor">@color/emerald_bg</item>
     </style>
+
+    <!-- Splash Screen theme for Android 12+ -->
+    <style name="Theme.AlQuran.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/emerald_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/emerald_bg</item>
+        <item name="postSplashScreenTheme">@style/Theme.AlQuran.NoActionBar</item>
+    </style>
 </resources>

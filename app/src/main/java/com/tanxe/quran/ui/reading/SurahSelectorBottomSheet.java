@@ -20,6 +20,7 @@ import com.tanxe.quran.data.dao.AyahDao;
 import com.tanxe.quran.data.repository.QuranRepository;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.ui.adapter.SurahListAdapter;
+import com.tanxe.quran.util.Localization;
 
 import java.util.List;
 
@@ -55,7 +56,9 @@ public class SurahSelectorBottomSheet extends BottomSheetDialogFragment {
         View sheetContainer = view.findViewById(R.id.sheet_container);
         sheetContainer.setBackgroundColor(theme.getSurfaceColor());
 
+        String lang = QuranRepository.getInstance(requireContext()).getLanguage();
         TextView title = view.findViewById(R.id.tv_sheet_title);
+        title.setText(Localization.get(lang, Localization.SELECT_SURAH));
         title.setTextColor(theme.getPrimaryTextColor());
 
         RecyclerView rv = view.findViewById(R.id.rv_surahs);
@@ -74,6 +77,7 @@ public class SurahSelectorBottomSheet extends BottomSheetDialogFragment {
         rv.setAdapter(adapter);
 
         EditText search = view.findViewById(R.id.et_surah_search);
+        search.setHint(Localization.get(lang, Localization.SEARCH_SURAH_HINT));
         search.setTextColor(theme.getPrimaryTextColor());
         search.setHintTextColor(theme.getSecondaryTextColor());
         search.addTextChangedListener(new TextWatcher() {

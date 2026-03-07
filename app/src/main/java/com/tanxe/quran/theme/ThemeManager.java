@@ -11,6 +11,8 @@ public class ThemeManager {
     public static final String THEME_MIDNIGHT = "midnight";
     public static final String THEME_PURPLE = "purple";
     public static final String THEME_DESERT = "desert";
+    public static final String THEME_AMOLED = "amoled";
+    public static final String THEME_OCEAN = "ocean";
 
     private final SharedPreferences prefs;
     private String currentTheme;
@@ -31,6 +33,10 @@ public class ThemeManager {
     private int modePillActiveColor;
     private int downloadedColor;
     private int errorColor;
+    private int highlightColor;
+    private int activeAyahTextColor;
+    private int playingAyahBg;
+    private int rippleColor;
 
     private ThemeManager(Context context) {
         prefs = context.getSharedPreferences("quran_prefs", Context.MODE_PRIVATE);
@@ -79,6 +85,10 @@ public class ThemeManager {
                 modePillActiveColor = Color.parseColor("#58A6FF");
                 downloadedColor = Color.parseColor("#3FB950");
                 errorColor = Color.parseColor("#F85149");
+                highlightColor = Color.parseColor("#1F3A5F");
+                activeAyahTextColor = Color.parseColor("#FFD54F");
+                playingAyahBg = Color.parseColor("#1A2636");
+                rippleColor = Color.parseColor("#2258A6FF");
                 break;
             case THEME_PURPLE:
                 backgroundColor = Color.parseColor("#1A0A2E");
@@ -96,6 +106,10 @@ public class ThemeManager {
                 modePillActiveColor = Color.parseColor("#BB86FC");
                 downloadedColor = Color.parseColor("#66BB6A");
                 errorColor = Color.parseColor("#EF5350");
+                highlightColor = Color.parseColor("#3D1B6E");
+                activeAyahTextColor = Color.parseColor("#FFAB40");
+                playingAyahBg = Color.parseColor("#2A1548");
+                rippleColor = Color.parseColor("#22BB86FC");
                 break;
             case THEME_DESERT:
                 backgroundColor = Color.parseColor("#FFF8F0");
@@ -113,6 +127,52 @@ public class ThemeManager {
                 modePillActiveColor = Color.parseColor("#8B6914");
                 downloadedColor = Color.parseColor("#2E7D32");
                 errorColor = Color.parseColor("#C62828");
+                highlightColor = Color.parseColor("#FFE0B2");
+                activeAyahTextColor = Color.parseColor("#D32F2F");
+                playingAyahBg = Color.parseColor("#FFF3E0");
+                rippleColor = Color.parseColor("#228B6914");
+                break;
+            case THEME_AMOLED:
+                backgroundColor = Color.parseColor("#000000");
+                surfaceColor = Color.parseColor("#0A0A0A");
+                accentColor = Color.parseColor("#FFD700");
+                arabicTextColor = Color.parseColor("#FFFFFF");
+                translationTextColor = Color.parseColor("#B0B0B0");
+                primaryTextColor = Color.parseColor("#E0E0E0");
+                secondaryTextColor = Color.parseColor("#808080");
+                cardColor = Color.parseColor("#121212");
+                dividerColor = Color.parseColor("#1E1E1E");
+                toolbarColor = Color.parseColor("#0A0A0A");
+                badgeColor = Color.parseColor("#FFD700");
+                modePillColor = Color.parseColor("#1A1A1A");
+                modePillActiveColor = Color.parseColor("#FFD700");
+                downloadedColor = Color.parseColor("#4CAF50");
+                errorColor = Color.parseColor("#FF5252");
+                highlightColor = Color.parseColor("#1A1A00");
+                activeAyahTextColor = Color.parseColor("#FF6E40");
+                playingAyahBg = Color.parseColor("#0D0D00");
+                rippleColor = Color.parseColor("#22FFD700");
+                break;
+            case THEME_OCEAN:
+                backgroundColor = Color.parseColor("#0A1929");
+                surfaceColor = Color.parseColor("#0D2137");
+                accentColor = Color.parseColor("#00BCD4");
+                arabicTextColor = Color.parseColor("#4DD0E1");
+                translationTextColor = Color.parseColor("#B2EBF2");
+                primaryTextColor = Color.parseColor("#E0F7FA");
+                secondaryTextColor = Color.parseColor("#80CBC4");
+                cardColor = Color.parseColor("#132F4C");
+                dividerColor = Color.parseColor("#1E3A5F");
+                toolbarColor = Color.parseColor("#132F4C");
+                badgeColor = Color.parseColor("#0097A7");
+                modePillColor = Color.parseColor("#1A3A5C");
+                modePillActiveColor = Color.parseColor("#00BCD4");
+                downloadedColor = Color.parseColor("#4CAF50");
+                errorColor = Color.parseColor("#FF5252");
+                highlightColor = Color.parseColor("#0D3045");
+                activeAyahTextColor = Color.parseColor("#FFAB40");
+                playingAyahBg = Color.parseColor("#0A2538");
+                rippleColor = Color.parseColor("#2200BCD4");
                 break;
             case THEME_EMERALD:
             default:
@@ -131,6 +191,10 @@ public class ThemeManager {
                 modePillActiveColor = Color.parseColor("#D4AF37");
                 downloadedColor = Color.parseColor("#66BB6A");
                 errorColor = Color.parseColor("#EF5350");
+                highlightColor = Color.parseColor("#1A4D35");
+                activeAyahTextColor = Color.parseColor("#FF7043");
+                playingAyahBg = Color.parseColor("#123D2A");
+                rippleColor = Color.parseColor("#22D4AF37");
                 break;
         }
     }
@@ -151,13 +215,17 @@ public class ThemeManager {
     public int getModePillActiveColor() { return modePillActiveColor; }
     public int getDownloadedColor() { return downloadedColor; }
     public int getErrorColor() { return errorColor; }
+    public int getHighlightColor() { return highlightColor; }
+    public int getActiveAyahTextColor() { return activeAyahTextColor; }
+    public int getPlayingAyahBg() { return playingAyahBg; }
+    public int getRippleColor() { return rippleColor; }
 
     public boolean isDarkTheme() {
         return !currentTheme.equals(THEME_DESERT);
     }
 
     public String[] getThemeNames() {
-        return new String[]{THEME_EMERALD, THEME_MIDNIGHT, THEME_PURPLE, THEME_DESERT};
+        return new String[]{THEME_EMERALD, THEME_MIDNIGHT, THEME_PURPLE, THEME_DESERT, THEME_AMOLED, THEME_OCEAN};
     }
 
     public String getThemeDisplayName(String theme) {
@@ -165,6 +233,8 @@ public class ThemeManager {
             case THEME_MIDNIGHT: return "Midnight Blue";
             case THEME_PURPLE: return "Royal Purple";
             case THEME_DESERT: return "Desert Sand";
+            case THEME_AMOLED: return "AMOLED Black";
+            case THEME_OCEAN: return "Ocean Teal";
             case THEME_EMERALD:
             default: return "Emerald Gold";
         }

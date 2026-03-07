@@ -32,7 +32,7 @@ public class DownloadManager {
     private static final String TAG = "DownloadManager";
     private static final String QURAN_API = "https://api.alquran.cloud/v1/quran/";
     private static final String WBW_API = "https://api.quran.com/api/v4/verses/by_chapter/";
-    private static final String AUDIO_BASE = "https://everyayah.com/data/Alafasy_128kbps/";
+    private static final String AUDIO_BASE = "https://everyayah.com/data/";
 
     private final Context context;
     private final QuranRepository repository;
@@ -141,7 +141,8 @@ public class DownloadManager {
 
                 repository.setDownloadState(edition, "downloaded");
                 repository.setDownloadProgress(edition, 100);
-                callback.onStatus("✓ " + edition + " downloaded (" + translations.size() + " ayahs)");
+                repository.updateEditionDownloadState(edition, true, 100);
+                callback.onStatus("\u2713 " + edition + " downloaded (" + translations.size() + " ayahs)");
 
             } catch (Exception e) {
                 Log.e(TAG, "Error downloading translation: " + edition, e);
@@ -165,36 +166,46 @@ public class DownloadManager {
                 callback.onStatus("Downloading tafseer " + edition + "...");
                 repository.setDownloadState(edition, "downloading");
 
-                List<Tafseer> allTafseers = new ArrayList<>();
+                // Use alquran.cloud API (same format as translations)
+                String url = QURAN_API + edition;
+                String json = fetchUrl(url);
+                if (json == null) {
+                    callback.onStatus("Failed: network error");
+                    repository.setDownloadState(edition, "none");
+                    return;
+                }
 
-                for (int surah = 1; surah <= 114; surah++) {
+                if (cancelled.get()) { cleanup(edition); return; }
+
+                JsonObject root = gson.fromJson(json, JsonObject.class);
+                JsonObject data = root.getAsJsonObject("data");
+                JsonArray surahs = data.getAsJsonArray("surahs");
+
+                List<Tafseer> allTafseers = new ArrayList<>();
+                int surahCount = 0;
+
+                for (JsonElement surahEl : surahs) {
                     if (cancelled.get()) { cleanup(edition); return; }
 
                     while (paused.get() && !cancelled.get()) {
                         try { Thread.sleep(500); } catch (InterruptedException ignored) {}
                     }
 
-                    callback.onStatus("Downloading surah " + surah + "/114...");
-                    int progress = (int) (surah * 100.0 / 114);
-                    repository.setDownloadProgress(edition, progress);
+                    JsonObject surah = surahEl.getAsJsonObject();
+                    int surahNum = surah.get("number").getAsInt();
+                    JsonArray ayahs = surah.getAsJsonArray("ayahs");
 
-                    String url = "https://api.quranhub.com/v1/surah/" + surah + "/" + edition;
-                    String json = fetchUrl(url);
-                    if (json == null) continue;
-
-                    try {
-                        JsonObject root = gson.fromJson(json, JsonObject.class);
-                        JsonArray ayahs = root.getAsJsonArray("data");
-                        if (ayahs == null) continue;
-
-                        for (int i = 0; i < ayahs.size(); i++) {
-                            JsonObject ayah = ayahs.get(i).getAsJsonObject();
-                            String text = ayah.has("text") ? ayah.get("text").getAsString() : "";
-                            allTafseers.add(new Tafseer(surah, i + 1, text, edition, language));
-                        }
-                    } catch (Exception e) {
-                        Log.w(TAG, "Error parsing surah " + surah, e);
+                    for (JsonElement ayahEl : ayahs) {
+                        JsonObject ayah = ayahEl.getAsJsonObject();
+                        int ayahNum = ayah.get("numberInSurah").getAsInt();
+                        String text = ayah.get("text").getAsString();
+                        allTafseers.add(new Tafseer(surahNum, ayahNum, text, edition, language));
                     }
+
+                    surahCount++;
+                    int progress = (int) (surahCount * 100.0 / 114);
+                    repository.setDownloadProgress(edition, progress);
+                    callback.onStatus("Processing surah " + surahCount + "/114...");
                 }
 
                 // Insert in batches
@@ -207,7 +218,8 @@ public class DownloadManager {
 
                 repository.setDownloadState(edition, "downloaded");
                 repository.setDownloadProgress(edition, 100);
-                callback.onStatus("✓ " + edition + " tafseer downloaded");
+                repository.updateEditionDownloadState(edition, true, 100);
+                callback.onStatus("\u2713 " + edition + " tafseer downloaded (" + allTafseers.size() + " ayahs)");
 
             } catch (Exception e) {
                 Log.e(TAG, "Error downloading tafseer", e);
@@ -251,7 +263,7 @@ public class DownloadManager {
                     while (hasMore) {
                         if (cancelled.get()) { cleanup(key); return; }
 
-                        String url = WBW_API + surah + "?language=" + language + "&words=true&page=" + page + "&per_page=50";
+                        String url = WBW_API + surah + "?language=" + language + "&words=true&word_fields=text_uthmani&page=" + page + "&per_page=50";
                         String json = fetchUrl(url);
                         if (json == null) break;
 
@@ -275,7 +287,8 @@ public class DownloadManager {
                                     if (!"word".equals(charType)) continue;
 
                                     int pos = word.has("position") ? word.get("position").getAsInt() : w + 1;
-                                    String arabicWord = word.has("text_uthmani") ? word.get("text_uthmani").getAsString() : "";
+                                    String arabicWord = word.has("text_uthmani") ? word.get("text_uthmani").getAsString()
+                                            : (word.has("text") ? word.get("text").getAsString() : "");
 
                                     String translation = "";
                                     if (word.has("translation")) {
@@ -323,7 +336,7 @@ public class DownloadManager {
 
                 repository.setDownloadState(key, "downloaded");
                 repository.setDownloadProgress(key, 100);
-                callback.onStatus("✓ Word-by-word (" + language + ") downloaded");
+                callback.onStatus("\u2713 Word-by-word (" + language + ") downloaded");
 
             } catch (Exception e) {
                 Log.e(TAG, "Error downloading WBW", e);
@@ -336,10 +349,102 @@ public class DownloadManager {
         });
     }
 
-    public void downloadAudioForSurah(int surah, StatusCallback callback) {
+    /**
+     * Download tafseer from quran.com API (supports more editions in multiple languages).
+     * Uses tafsir resource IDs from quran.com.
+     */
+    public void downloadTafseerFromQuranCom(String editionKey, int resourceId, String language, StatusCallback callback) {
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        AtomicBoolean paused = new AtomicBoolean(false);
+        cancelFlags.put(editionKey, cancelled);
+        pauseFlags.put(editionKey, paused);
+
         executor.execute(() -> {
             try {
-                File audioDir = new File(context.getFilesDir(), "audio");
+                callback.onStatus("Downloading tafseer...");
+                repository.setDownloadState(editionKey, "downloading");
+
+                List<Tafseer> allTafseers = new ArrayList<>();
+
+                for (int surah = 1; surah <= 114; surah++) {
+                    if (cancelled.get()) { cleanup(editionKey); return; }
+
+                    while (paused.get() && !cancelled.get()) {
+                        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+                    }
+
+                    callback.onStatus("Downloading surah " + surah + "/114...");
+                    int progress = (int) (surah * 100.0 / 114);
+                    repository.setDownloadProgress(editionKey, progress);
+
+                    String url = "https://api.quran.com/api/v4/tafsirs/" + resourceId + "/by_chapter/" + surah;
+                    String json = fetchUrl(url);
+                    if (json == null) continue;
+
+                    try {
+                        JsonObject root = gson.fromJson(json, JsonObject.class);
+                        JsonArray tafsirs = root.getAsJsonArray("tafsirs");
+                        if (tafsirs == null) continue;
+
+                        for (JsonElement el : tafsirs) {
+                            JsonObject t = el.getAsJsonObject();
+                            String verseKey = t.get("verse_key").getAsString();
+                            String[] parts = verseKey.split(":");
+                            String ayahPart = parts[1];
+
+                            // Strip HTML tags from text
+                            String text = t.has("text") ? t.get("text").getAsString() : "";
+                            text = text.replaceAll("<[^>]*>", "").trim();
+
+                            // Handle verse ranges like "2:1-5"
+                            if (ayahPart.contains("-")) {
+                                String[] range = ayahPart.split("-");
+                                int start = Integer.parseInt(range[0]);
+                                int end = Integer.parseInt(range[1]);
+                                for (int a = start; a <= end; a++) {
+                                    allTafseers.add(new Tafseer(surah, a, text, editionKey, language));
+                                }
+                            } else {
+                                int ayahNum = Integer.parseInt(ayahPart);
+                                allTafseers.add(new Tafseer(surah, ayahNum, text, editionKey, language));
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Error parsing tafseer surah " + surah, e);
+                    }
+                }
+
+                // Insert in batches
+                int batchSize = 500;
+                for (int i = 0; i < allTafseers.size(); i += batchSize) {
+                    if (cancelled.get()) { cleanup(editionKey); return; }
+                    int end = Math.min(i + batchSize, allTafseers.size());
+                    repository.insertTafseers(allTafseers.subList(i, end));
+                }
+
+                repository.setDownloadState(editionKey, "downloaded");
+                repository.setDownloadProgress(editionKey, 100);
+                repository.updateEditionDownloadState(editionKey, true, 100);
+                callback.onStatus("\u2713 Tafseer downloaded (" + allTafseers.size() + " ayahs)");
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error downloading tafseer from quran.com", e);
+                repository.setDownloadState(editionKey, "none");
+                callback.onStatus("Failed: " + e.getMessage());
+            } finally {
+                cancelFlags.remove(editionKey);
+                pauseFlags.remove(editionKey);
+            }
+        });
+    }
+
+    /**
+     * Download audio for a surah with a specific reciter folder.
+     */
+    public void downloadAudioForSurah(int surah, String reciterFolder, StatusCallback callback) {
+        executor.execute(() -> {
+            try {
+                File audioDir = new File(context.getFilesDir(), "audio/" + reciterFolder);
                 if (!audioDir.exists()) audioDir.mkdirs();
 
                 int ayahCount = com.tanxe.quran.util.QuranDataParser.SURAH_AYAH_COUNT[surah - 1];
@@ -355,17 +460,24 @@ public class DownloadManager {
 
                     callback.onStatus("Audio: " + surah + ":" + ayah + "/" + ayahCount);
 
-                    String url = AUDIO_BASE + filename;
+                    String url = AUDIO_BASE + reciterFolder + "/" + filename;
                     downloadFile(url, file);
                 }
 
-                callback.onStatus("✓ Surah " + surah + " audio downloaded");
+                callback.onStatus("\u2713 Surah " + surah + " audio downloaded");
 
             } catch (Exception e) {
                 Log.e(TAG, "Error downloading audio", e);
                 callback.onStatus("Failed: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * Legacy method - downloads with default reciter (Alafasy).
+     */
+    public void downloadAudioForSurah(int surah, StatusCallback callback) {
+        downloadAudioForSurah(surah, "Alafasy_128kbps", callback);
     }
 
     private void cleanup(String edition) {

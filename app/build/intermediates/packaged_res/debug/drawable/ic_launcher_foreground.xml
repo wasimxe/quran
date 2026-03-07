@@ -4,16 +4,86 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Book shape -->
+
+    <!-- Outer decorative circle ring -->
     <path
         android:fillColor="#D4AF37"
-        android:pathData="M54,24 L30,28 L30,80 L54,76 L78,80 L78,28 Z" />
-    <!-- Center line -->
+        android:pathData="M54,20 A34,34 0 1,1 53.99,20 Z M54,24 A30,30 0 1,0 54.01,24 Z" />
+
+    <!-- Inner decorative ring -->
     <path
-        android:fillColor="#0A2E1F"
-        android:pathData="M53,28 L55,28 L55,76 L53,76 Z" />
-    <!-- Star -->
+        android:fillColor="#D4AF37"
+        android:alpha="0.4"
+        android:pathData="M54,26 A28,28 0 1,1 53.99,26 Z M54,28 A26,26 0 1,0 54.01,28 Z" />
+
+    <!-- Open book - left page -->
     <path
-        android:fillColor="#0A2E1F"
-        android:pathData="M54,40 L56,46 L62,46 L57,50 L59,56 L54,52 L49,56 L51,50 L46,46 L52,46 Z" />
+        android:fillColor="#D4AF37"
+        android:pathData="M54,42 L54,78 Q44,74 32,76 L32,40 Q44,38 54,42 Z" />
+
+    <!-- Open book - right page -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M54,42 L54,78 Q64,74 76,76 L76,40 Q64,38 54,42 Z" />
+
+    <!-- Book spine highlight -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:alpha="0.3"
+        android:pathData="M53,42 L55,42 L55,78 L53,78 Z" />
+
+    <!-- Left page lines -->
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M37,48 L50,46" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M36,53 L50,51" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M35,58 L50,56" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M34,63 L50,61" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M33,68 L50,66" />
+
+    <!-- Right page lines -->
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M58,46 L71,48" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M58,51 L72,53" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M58,56 L73,58" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M58,61 L74,63" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="0.6"
+        android:pathData="M58,66 L75,68" />
+
+    <!-- Crescent moon above book -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M54,24 A10,10 0 1,1 54,44 A7.5,7.5 0 1,0 54,24 Z" />
+
+    <!-- Star next to crescent -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M66,30 L67.2,33.6 L71,33.6 L68,36 L69,39.6 L66,37.2 L63,39.6 L64,36 L61,33.6 L64.8,33.6 Z" />
+
 </vector>

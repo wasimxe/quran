@@ -1,6 +1,8 @@
 package com.tanxe.quran.ui.search;
 
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,17 +15,22 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputEditText;
 import com.tanxe.quran.MainActivity;
 import com.tanxe.quran.R;
 import com.tanxe.quran.data.entity.Ayah;
+import com.tanxe.quran.data.entity.Translation;
 import com.tanxe.quran.data.repository.QuranRepository;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.ui.adapter.SearchAdapter;
+import com.tanxe.quran.util.Localization;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class SearchFragment extends Fragment {
     private QuranRepository repository;
@@ -78,6 +85,18 @@ public class SearchFragment extends Fragment {
             }
             return false;
         });
+
+        // Live search as user types (debounced)
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (s.length() >= 3) {
+                    performSearch();
+                }
+            }
+        });
     }
 
     private void performSearch() {
@@ -91,7 +110,32 @@ public class SearchFragment extends Fragment {
                     results = repository.searchArabic(query);
                     break;
                 case "translation":
+                    // Search across built-in translation AND all downloaded translations
                     results = repository.searchTranslation(query);
+
+                    // Also search across downloaded translations
+                    List<Translation> extraResults = repository.searchAllTranslations(query);
+                    if (extraResults != null && !extraResults.isEmpty()) {
+                        // Merge results: add ayahs from extra results that aren't already in results
+                        Set<String> existing = new HashSet<>();
+                        if (results != null) {
+                            for (Ayah a : results) {
+                                existing.add(a.surahNumber + ":" + a.ayahNumber);
+                            }
+                        } else {
+                            results = new ArrayList<>();
+                        }
+
+                        for (Translation t : extraResults) {
+                            String key = t.surahNumber + ":" + t.ayahNumber;
+                            if (!existing.contains(key)) {
+                                existing.add(key);
+                                // Fetch the full Ayah for display
+                                Ayah ayah = repository.getAyah(t.surahNumber, t.ayahNumber);
+                                if (ayah != null) results.add(ayah);
+                            }
+                        }
+                    }
                     break;
                 default:
                     results = repository.searchAll(query);
@@ -110,7 +154,8 @@ public class SearchFragment extends Fragment {
                     } else {
                         tvNoResults.setVisibility(View.GONE);
                         rvResults.setVisibility(View.VISIBLE);
-                        tvResultCount.setText(finalResults.size() + " results");
+                        String resLabel = Localization.get(repository.getLanguage(), Localization.RESULTS);
+                        tvResultCount.setText(finalResults.size() + " " + resLabel);
 
                         SearchAdapter adapter = new SearchAdapter(finalResults, theme, ayah -> {
                             if (getActivity() instanceof MainActivity) {
@@ -124,6 +169,21 @@ public class SearchFragment extends Fragment {
         });
     }
 
+    /** Called externally to search a word and show results (e.g. from Learn mode) */
+    public void searchFor(String query) {
+        if (etSearch == null) return;
+        // Set the filter to Arabic since learn mode searches Arabic words
+        searchFilter = "arabic";
+        // Update chip selection
+        if (getView() != null) {
+            ChipGroup filterChips = getView().findViewById(R.id.search_filter_chips);
+            filterChips.check(R.id.chip_search_arabic);
+        }
+        etSearch.setText(query);
+        etSearch.setSelection(query.length());
+        performSearch();
+    }
+
     public void applyTheme() {
         if (getView() == null) return;
         theme = ThemeManager.getInstance(requireContext());
@@ -131,5 +191,27 @@ public class SearchFragment extends Fragment {
         container.setBackgroundColor(theme.getBackgroundColor());
         tvResultCount.setTextColor(theme.getSecondaryTextColor());
         tvNoResults.setTextColor(theme.getSecondaryTextColor());
+        localizeLabels();
+    }
+
+    private void localizeLabels() {
+        if (getView() == null) return;
+        String lang = repository.getLanguage();
+
+        etSearch.setHint(Localization.get(lang, Localization.SEARCH_HINT));
+
+        Chip chipAll = getView().findViewById(R.id.chip_search_all);
+        if (chipAll != null) chipAll.setText(Localization.get(lang, Localization.SEARCH_ALL));
+
+        Chip chipArabic = getView().findViewById(R.id.chip_search_arabic);
+        if (chipArabic != null) chipArabic.setText(Localization.get(lang, Localization.MODE_ARABIC));
+
+        Chip chipTranslation = getView().findViewById(R.id.chip_search_translation);
+        if (chipTranslation != null) chipTranslation.setText(Localization.get(lang, Localization.MODE_TRANSLATION));
+
+        Chip chipTafseer = getView().findViewById(R.id.chip_search_tafseer);
+        if (chipTafseer != null) chipTafseer.setText(Localization.get(lang, Localization.TAFSEER));
+
+        tvNoResults.setText(Localization.get(lang, Localization.NO_RESULTS));
     }
 }

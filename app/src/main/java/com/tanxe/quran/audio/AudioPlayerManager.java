@@ -4,10 +4,9 @@ import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
-import androidx.annotation.OptIn;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
-import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
 
 import java.io.File;
@@ -20,6 +19,8 @@ public class AudioPlayerManager {
     private ExoPlayer player;
     private boolean isPlaying = false;
     private PlaybackCallback callback;
+    private String currentReciterFolder = "Alafasy_128kbps";
+    private float playbackSpeed = 1.0f;
 
     public interface PlaybackCallback {
         void onPlaybackEnded();
@@ -59,11 +60,61 @@ public class AudioPlayerManager {
         this.callback = callback;
     }
 
+    public void setReciter(String reciterFolder) {
+        this.currentReciterFolder = reciterFolder;
+    }
+
+    public String getCurrentReciterFolder() {
+        return currentReciterFolder;
+    }
+
+    public void setPlaybackSpeed(float speed) {
+        this.playbackSpeed = speed;
+        if (player != null) {
+            player.setPlaybackParameters(new PlaybackParameters(speed));
+        }
+    }
+
+    public float getPlaybackSpeed() {
+        return playbackSpeed;
+    }
+
+    /**
+     * Play audio for a specific surah:ayah using the current reciter.
+     */
+    public void playAyah(int surah, int ayah, boolean repeat) {
+        String filename = String.format("%03d%03d.mp3", surah, ayah);
+
+        // Check local file with reciter subfolder first
+        File localFile = new File(context.getFilesDir(), "audio/" + currentReciterFolder + "/" + filename);
+        if (!localFile.exists() || localFile.length() == 0) {
+            // Fallback to flat audio directory (legacy)
+            localFile = new File(context.getFilesDir(), "audio/" + filename);
+        }
+
+        Uri uri;
+        if (localFile.exists() && localFile.length() > 0) {
+            uri = Uri.fromFile(localFile);
+        } else {
+            // Stream from everyayah.com
+            String url = "https://everyayah.com/data/" + currentReciterFolder + "/" + filename;
+            uri = Uri.parse(url);
+        }
+
+        playUri(uri, repeat);
+    }
+
     public void playUrl(String url, boolean repeat) {
         try {
             // Check if file exists locally first
             String filename = url.substring(url.lastIndexOf('/') + 1);
-            File localFile = new File(context.getFilesDir(), "audio/" + filename);
+
+            // Check reciter-specific folder
+            File localFile = new File(context.getFilesDir(), "audio/" + currentReciterFolder + "/" + filename);
+            if (!localFile.exists() || localFile.length() == 0) {
+                // Fallback to flat audio directory
+                localFile = new File(context.getFilesDir(), "audio/" + filename);
+            }
 
             Uri uri;
             if (localFile.exists() && localFile.length() > 0) {
@@ -72,9 +123,19 @@ public class AudioPlayerManager {
                 uri = Uri.parse(url);
             }
 
+            playUri(uri, repeat);
+        } catch (Exception e) {
+            Log.e(TAG, "Error playing audio", e);
+            if (callback != null) callback.onError(e.getMessage());
+        }
+    }
+
+    private void playUri(Uri uri, boolean repeat) {
+        try {
             player.stop();
             player.setMediaItem(MediaItem.fromUri(uri));
             player.setRepeatMode(repeat ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+            player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
             player.prepare();
             player.play();
             isPlaying = true;

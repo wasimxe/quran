@@ -257,6 +257,167 @@ public final class WordByWordDao_Impl implements WordByWordDao {
     }
   }
 
+  @Override
+  public List<WordByWordDao.WordFrequency> getWordFrequenciesBySurah(final String language,
+      final int surah) {
+    final String _sql = "SELECT arabicWord, COUNT(*) as frequency FROM word_by_word WHERE language = ? AND surahNumber = ? GROUP BY arabicWord ORDER BY frequency DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 2);
+    int _argIndex = 1;
+    if (language == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, language);
+    }
+    _argIndex = 2;
+    _statement.bindLong(_argIndex, surah);
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfArabicWord = 0;
+      final int _cursorIndexOfFrequency = 1;
+      final List<WordByWordDao.WordFrequency> _result = new ArrayList<WordByWordDao.WordFrequency>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final WordByWordDao.WordFrequency _item;
+        _item = new WordByWordDao.WordFrequency();
+        if (_cursor.isNull(_cursorIndexOfArabicWord)) {
+          _item.arabicWord = null;
+        } else {
+          _item.arabicWord = _cursor.getString(_cursorIndexOfArabicWord);
+        }
+        _item.frequency = _cursor.getInt(_cursorIndexOfFrequency);
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public List<WordByWordDao.WordWithTranslation> getWordsWithTranslations(final String language) {
+    final String _sql = "SELECT arabicWord, translation, COUNT(*) as frequency FROM word_by_word WHERE language = ? GROUP BY arabicWord ORDER BY frequency DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    if (language == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, language);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfArabicWord = 0;
+      final int _cursorIndexOfTranslation = 1;
+      final int _cursorIndexOfFrequency = 2;
+      final List<WordByWordDao.WordWithTranslation> _result = new ArrayList<WordByWordDao.WordWithTranslation>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final WordByWordDao.WordWithTranslation _item;
+        _item = new WordByWordDao.WordWithTranslation();
+        if (_cursor.isNull(_cursorIndexOfArabicWord)) {
+          _item.arabicWord = null;
+        } else {
+          _item.arabicWord = _cursor.getString(_cursorIndexOfArabicWord);
+        }
+        if (_cursor.isNull(_cursorIndexOfTranslation)) {
+          _item.translation = null;
+        } else {
+          _item.translation = _cursor.getString(_cursorIndexOfTranslation);
+        }
+        _item.frequency = _cursor.getInt(_cursorIndexOfFrequency);
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public List<WordByWordDao.WordWithTranslation> getWordsWithTranslationsBySurah(
+      final String language, final int surah) {
+    final String _sql = "SELECT arabicWord, translation, COUNT(*) as frequency FROM word_by_word WHERE language = ? AND surahNumber = ? GROUP BY arabicWord ORDER BY frequency DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 2);
+    int _argIndex = 1;
+    if (language == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, language);
+    }
+    _argIndex = 2;
+    _statement.bindLong(_argIndex, surah);
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfArabicWord = 0;
+      final int _cursorIndexOfTranslation = 1;
+      final int _cursorIndexOfFrequency = 2;
+      final List<WordByWordDao.WordWithTranslation> _result = new ArrayList<WordByWordDao.WordWithTranslation>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final WordByWordDao.WordWithTranslation _item;
+        _item = new WordByWordDao.WordWithTranslation();
+        if (_cursor.isNull(_cursorIndexOfArabicWord)) {
+          _item.arabicWord = null;
+        } else {
+          _item.arabicWord = _cursor.getString(_cursorIndexOfArabicWord);
+        }
+        if (_cursor.isNull(_cursorIndexOfTranslation)) {
+          _item.translation = null;
+        } else {
+          _item.translation = _cursor.getString(_cursorIndexOfTranslation);
+        }
+        _item.frequency = _cursor.getInt(_cursorIndexOfFrequency);
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public List<WordByWordDao.TranslationCount> getTranslationsForWord(final String language,
+      final String arabicWord) {
+    final String _sql = "SELECT translation, COUNT(*) as cnt FROM word_by_word WHERE language = ? AND arabicWord = ? GROUP BY translation ORDER BY cnt DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 2);
+    int _argIndex = 1;
+    if (language == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, language);
+    }
+    _argIndex = 2;
+    if (arabicWord == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, arabicWord);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfTranslation = 0;
+      final int _cursorIndexOfCnt = 1;
+      final List<WordByWordDao.TranslationCount> _result = new ArrayList<WordByWordDao.TranslationCount>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final WordByWordDao.TranslationCount _item;
+        _item = new WordByWordDao.TranslationCount();
+        if (_cursor.isNull(_cursorIndexOfTranslation)) {
+          _item.translation = null;
+        } else {
+          _item.translation = _cursor.getString(_cursorIndexOfTranslation);
+        }
+        _item.cnt = _cursor.getInt(_cursorIndexOfCnt);
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
   @NonNull
   public static List<Class<?>> getRequiredConverters() {
     return Collections.emptyList();

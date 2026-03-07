@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.tanxe.quran.app-mergeDebugResources-45:/values-el/values-el.xml",
+            "outputFile": "com.tanxe.quran.app-mergeDebugResources-49:/values-el/values-el.xml",
             "map": [
                 {
                     "source": "C:\\Users\\TanxeStudio\\.gradle\\caches\\transforms-3\\3ce984fd071d43be707f3887b2e71d5e\\transformed\\media3-exoplayer-1.2.1\\res\\values-el\\values-el.xml",

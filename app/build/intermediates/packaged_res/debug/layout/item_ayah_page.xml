@@ -48,7 +48,7 @@
         android:textSize="36sp"
         android:textDirection="rtl"
         android:textAlignment="center"
-        android:lineSpacingMultiplier="2.0"
+        android:lineSpacingMultiplier="1.0"
         android:padding="8dp" />
 
     <!-- Ayah number marker -->
@@ -60,16 +60,39 @@
         android:gravity="center"
         android:layout_marginTop="4dp" />
 
+    <!-- Translation (visible based on preference) -->
+    <TextView
+        android:id="@+id/tv_translation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18sp"
+        android:textDirection="rtl"
+        android:textAlignment="viewEnd"
+        android:lineSpacingMultiplier="1.0"
+        android:padding="8dp" />
+
+    <!-- Ruku end marker -->
+    <TextView
+        android:id="@+id/tv_ruku_marker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:visibility="gone"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="2dp"
+        android:layout_marginTop="4dp" />
+
     <!-- Ornamental divider bottom -->
     <View
         android:id="@+id/divider_bottom"
-        android:layout_width="200dp"
+        android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@drawable/divider_ornamental"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp" />
 
-    <!-- Learning mode content (hidden in reading mode) -->
+    <!-- Learning mode extra content (tafseer/WBW) -->
     <LinearLayout
         android:id="@+id/learning_content"
         android:layout_width="match_parent"
@@ -77,15 +100,22 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Translation/Tafseer Text -->
+        <!-- Extra content label -->
         <TextView
-            android:id="@+id/tv_translation"
+            android:id="@+id/tv_extra_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textStyle="italic"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Tafseer/Extra translation text -->
+        <TextView
+            android:id="@+id/tv_extra_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:textDirection="rtl"
-            android:textAlignment="viewEnd"
-            android:lineSpacingMultiplier="1.6"
+            android:textSize="16sp"
+            android:lineSpacingMultiplier="1.0"
             android:padding="8dp" />
 
         <!-- Word by Word RecyclerView -->

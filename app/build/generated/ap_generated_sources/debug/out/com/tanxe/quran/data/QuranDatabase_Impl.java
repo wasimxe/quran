@@ -15,8 +15,14 @@ import com.tanxe.quran.data.dao.AyahDao;
 import com.tanxe.quran.data.dao.AyahDao_Impl;
 import com.tanxe.quran.data.dao.BookmarkDao;
 import com.tanxe.quran.data.dao.BookmarkDao_Impl;
+import com.tanxe.quran.data.dao.EditionInfoDao;
+import com.tanxe.quran.data.dao.EditionInfoDao_Impl;
 import com.tanxe.quran.data.dao.KnownWordDao;
 import com.tanxe.quran.data.dao.KnownWordDao_Impl;
+import com.tanxe.quran.data.dao.ReadingProgressDao;
+import com.tanxe.quran.data.dao.ReadingProgressDao_Impl;
+import com.tanxe.quran.data.dao.ReciterInfoDao;
+import com.tanxe.quran.data.dao.ReciterInfoDao_Impl;
 import com.tanxe.quran.data.dao.TafseerDao;
 import com.tanxe.quran.data.dao.TafseerDao_Impl;
 import com.tanxe.quran.data.dao.TranslationDao;
@@ -50,10 +56,16 @@ public final class QuranDatabase_Impl extends QuranDatabase {
 
   private volatile KnownWordDao _knownWordDao;
 
+  private volatile EditionInfoDao _editionInfoDao;
+
+  private volatile ReciterInfoDao _reciterInfoDao;
+
+  private volatile ReadingProgressDao _readingProgressDao;
+
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(1) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(2) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `ayahs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `surahNameEn` TEXT, `surahNameAr` TEXT, `arabicText` TEXT, `defaultTranslation` TEXT, `juzNumber` INTEGER NOT NULL)");
@@ -62,8 +74,11 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         db.execSQL("CREATE TABLE IF NOT EXISTS `word_by_word` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `wordPosition` INTEGER NOT NULL, `arabicWord` TEXT, `translation` TEXT, `transliteration` TEXT, `language` TEXT)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `bookmarks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `surahName` TEXT, `note` TEXT, `timestamp` INTEGER NOT NULL)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `known_words` (`arabicWord` TEXT NOT NULL, `frequency` INTEGER NOT NULL, `learnedAt` INTEGER NOT NULL, PRIMARY KEY(`arabicWord`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `edition_info` (`identifier` TEXT NOT NULL, `name` TEXT, `language` TEXT, `languageName` TEXT, `type` TEXT, `direction` TEXT, `isDownloaded` INTEGER NOT NULL, `downloadProgress` INTEGER NOT NULL, `downloadedAt` INTEGER NOT NULL, PRIMARY KEY(`identifier`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `reciter_info` (`identifier` TEXT NOT NULL, `name` TEXT, `style` TEXT, `subfolder` TEXT, `bitrate` INTEGER NOT NULL, `isDownloaded` INTEGER NOT NULL, PRIMARY KEY(`identifier`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `reading_progress` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `sessionDurationSeconds` INTEGER NOT NULL, `type` TEXT)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '800ba0749cfbdead1232935ddd459e1f')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '226f1e196741672cda41492eb721e188')");
       }
 
       @Override
@@ -74,6 +89,9 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         db.execSQL("DROP TABLE IF EXISTS `word_by_word`");
         db.execSQL("DROP TABLE IF EXISTS `bookmarks`");
         db.execSQL("DROP TABLE IF EXISTS `known_words`");
+        db.execSQL("DROP TABLE IF EXISTS `edition_info`");
+        db.execSQL("DROP TABLE IF EXISTS `reciter_info`");
+        db.execSQL("DROP TABLE IF EXISTS `reading_progress`");
         final List<? extends RoomDatabase.Callback> _callbacks = mCallbacks;
         if (_callbacks != null) {
           for (RoomDatabase.Callback _callback : _callbacks) {
@@ -214,9 +232,60 @@ public final class QuranDatabase_Impl extends QuranDatabase {
                   + " Expected:\n" + _infoKnownWords + "\n"
                   + " Found:\n" + _existingKnownWords);
         }
+        final HashMap<String, TableInfo.Column> _columnsEditionInfo = new HashMap<String, TableInfo.Column>(9);
+        _columnsEditionInfo.put("identifier", new TableInfo.Column("identifier", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("name", new TableInfo.Column("name", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("language", new TableInfo.Column("language", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("languageName", new TableInfo.Column("languageName", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("type", new TableInfo.Column("type", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("direction", new TableInfo.Column("direction", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("isDownloaded", new TableInfo.Column("isDownloaded", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("downloadProgress", new TableInfo.Column("downloadProgress", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsEditionInfo.put("downloadedAt", new TableInfo.Column("downloadedAt", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysEditionInfo = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesEditionInfo = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoEditionInfo = new TableInfo("edition_info", _columnsEditionInfo, _foreignKeysEditionInfo, _indicesEditionInfo);
+        final TableInfo _existingEditionInfo = TableInfo.read(db, "edition_info");
+        if (!_infoEditionInfo.equals(_existingEditionInfo)) {
+          return new RoomOpenHelper.ValidationResult(false, "edition_info(com.tanxe.quran.data.entity.EditionInfo).\n"
+                  + " Expected:\n" + _infoEditionInfo + "\n"
+                  + " Found:\n" + _existingEditionInfo);
+        }
+        final HashMap<String, TableInfo.Column> _columnsReciterInfo = new HashMap<String, TableInfo.Column>(6);
+        _columnsReciterInfo.put("identifier", new TableInfo.Column("identifier", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReciterInfo.put("name", new TableInfo.Column("name", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReciterInfo.put("style", new TableInfo.Column("style", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReciterInfo.put("subfolder", new TableInfo.Column("subfolder", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReciterInfo.put("bitrate", new TableInfo.Column("bitrate", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReciterInfo.put("isDownloaded", new TableInfo.Column("isDownloaded", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysReciterInfo = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesReciterInfo = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoReciterInfo = new TableInfo("reciter_info", _columnsReciterInfo, _foreignKeysReciterInfo, _indicesReciterInfo);
+        final TableInfo _existingReciterInfo = TableInfo.read(db, "reciter_info");
+        if (!_infoReciterInfo.equals(_existingReciterInfo)) {
+          return new RoomOpenHelper.ValidationResult(false, "reciter_info(com.tanxe.quran.data.entity.ReciterInfo).\n"
+                  + " Expected:\n" + _infoReciterInfo + "\n"
+                  + " Found:\n" + _existingReciterInfo);
+        }
+        final HashMap<String, TableInfo.Column> _columnsReadingProgress = new HashMap<String, TableInfo.Column>(6);
+        _columnsReadingProgress.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReadingProgress.put("surahNumber", new TableInfo.Column("surahNumber", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReadingProgress.put("ayahNumber", new TableInfo.Column("ayahNumber", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReadingProgress.put("timestamp", new TableInfo.Column("timestamp", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReadingProgress.put("sessionDurationSeconds", new TableInfo.Column("sessionDurationSeconds", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsReadingProgress.put("type", new TableInfo.Column("type", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        final HashSet<TableInfo.ForeignKey> _foreignKeysReadingProgress = new HashSet<TableInfo.ForeignKey>(0);
+        final HashSet<TableInfo.Index> _indicesReadingProgress = new HashSet<TableInfo.Index>(0);
+        final TableInfo _infoReadingProgress = new TableInfo("reading_progress", _columnsReadingProgress, _foreignKeysReadingProgress, _indicesReadingProgress);
+        final TableInfo _existingReadingProgress = TableInfo.read(db, "reading_progress");
+        if (!_infoReadingProgress.equals(_existingReadingProgress)) {
+          return new RoomOpenHelper.ValidationResult(false, "reading_progress(com.tanxe.quran.data.entity.ReadingProgress).\n"
+                  + " Expected:\n" + _infoReadingProgress + "\n"
+                  + " Found:\n" + _existingReadingProgress);
+        }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "800ba0749cfbdead1232935ddd459e1f", "ba1d299c6cc95dac55351932f4bcbc3d");
+    }, "226f1e196741672cda41492eb721e188", "6e175ca5dee797ff8e7e72187610d481");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
@@ -227,7 +296,7 @@ public final class QuranDatabase_Impl extends QuranDatabase {
   protected InvalidationTracker createInvalidationTracker() {
     final HashMap<String, String> _shadowTablesMap = new HashMap<String, String>(0);
     final HashMap<String, Set<String>> _viewTables = new HashMap<String, Set<String>>(0);
-    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "ayahs","translations","tafseers","word_by_word","bookmarks","known_words");
+    return new InvalidationTracker(this, _shadowTablesMap, _viewTables, "ayahs","translations","tafseers","word_by_word","bookmarks","known_words","edition_info","reciter_info","reading_progress");
   }
 
   @Override
@@ -242,6 +311,9 @@ public final class QuranDatabase_Impl extends QuranDatabase {
       _db.execSQL("DELETE FROM `word_by_word`");
       _db.execSQL("DELETE FROM `bookmarks`");
       _db.execSQL("DELETE FROM `known_words`");
+      _db.execSQL("DELETE FROM `edition_info`");
+      _db.execSQL("DELETE FROM `reciter_info`");
+      _db.execSQL("DELETE FROM `reading_progress`");
       super.setTransactionSuccessful();
     } finally {
       super.endTransaction();
@@ -262,6 +334,9 @@ public final class QuranDatabase_Impl extends QuranDatabase {
     _typeConvertersMap.put(WordByWordDao.class, WordByWordDao_Impl.getRequiredConverters());
     _typeConvertersMap.put(BookmarkDao.class, BookmarkDao_Impl.getRequiredConverters());
     _typeConvertersMap.put(KnownWordDao.class, KnownWordDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(EditionInfoDao.class, EditionInfoDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(ReciterInfoDao.class, ReciterInfoDao_Impl.getRequiredConverters());
+    _typeConvertersMap.put(ReadingProgressDao.class, ReadingProgressDao_Impl.getRequiredConverters());
     return _typeConvertersMap;
   }
 
@@ -360,6 +435,48 @@ public final class QuranDatabase_Impl extends QuranDatabase {
           _knownWordDao = new KnownWordDao_Impl(this);
         }
         return _knownWordDao;
+      }
+    }
+  }
+
+  @Override
+  public EditionInfoDao editionInfoDao() {
+    if (_editionInfoDao != null) {
+      return _editionInfoDao;
+    } else {
+      synchronized(this) {
+        if(_editionInfoDao == null) {
+          _editionInfoDao = new EditionInfoDao_Impl(this);
+        }
+        return _editionInfoDao;
+      }
+    }
+  }
+
+  @Override
+  public ReciterInfoDao reciterInfoDao() {
+    if (_reciterInfoDao != null) {
+      return _reciterInfoDao;
+    } else {
+      synchronized(this) {
+        if(_reciterInfoDao == null) {
+          _reciterInfoDao = new ReciterInfoDao_Impl(this);
+        }
+        return _reciterInfoDao;
+      }
+    }
+  }
+
+  @Override
+  public ReadingProgressDao readingProgressDao() {
+    if (_readingProgressDao != null) {
+      return _readingProgressDao;
+    } else {
+      synchronized(this) {
+        if(_readingProgressDao == null) {
+          _readingProgressDao = new ReadingProgressDao_Impl(this);
+        }
+        return _readingProgressDao;
       }
     }
   }

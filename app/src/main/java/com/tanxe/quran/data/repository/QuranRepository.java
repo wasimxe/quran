@@ -2,16 +2,29 @@ package com.tanxe.quran.data.repository;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.tanxe.quran.data.QuranDatabase;
+import com.tanxe.quran.data.ReciterCatalog;
+import com.tanxe.quran.data.api.ApiClient;
+import com.tanxe.quran.data.api.QuranApiService;
 import com.tanxe.quran.data.dao.*;
 import com.tanxe.quran.data.entity.*;
 
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import retrofit2.Response;
+
 public class QuranRepository {
+    private static final String TAG = "QuranRepository";
     private static volatile QuranRepository INSTANCE;
 
     private final AyahDao ayahDao;
@@ -20,6 +33,9 @@ public class QuranRepository {
     private final WordByWordDao wordByWordDao;
     private final BookmarkDao bookmarkDao;
     private final KnownWordDao knownWordDao;
+    private final EditionInfoDao editionInfoDao;
+    private final ReciterInfoDao reciterInfoDao;
+    private final ReadingProgressDao readingProgressDao;
     private final SharedPreferences prefs;
     private final ExecutorService executor;
 
@@ -31,6 +47,9 @@ public class QuranRepository {
         wordByWordDao = db.wordByWordDao();
         bookmarkDao = db.bookmarkDao();
         knownWordDao = db.knownWordDao();
+        editionInfoDao = db.editionInfoDao();
+        reciterInfoDao = db.reciterInfoDao();
+        readingProgressDao = db.readingProgressDao();
         prefs = context.getSharedPreferences("quran_prefs", Context.MODE_PRIVATE);
         executor = Executors.newFixedThreadPool(4);
     }
@@ -79,6 +98,10 @@ public class QuranRepository {
     public List<WordByWord> getWords(int surah, int ayah, String language) { return wordByWordDao.getWords(surah, ayah, language); }
     public List<String> getAvailableWbwLanguages() { return wordByWordDao.getAvailableLanguages(); }
     public List<com.tanxe.quran.data.dao.WordByWordDao.WordFrequency> getWords_frequencies(String language) { return wordByWordDao.getWordFrequencies(language); }
+    public List<com.tanxe.quran.data.dao.WordByWordDao.WordFrequency> getWordFrequenciesBySurah(String language, int surah) { return wordByWordDao.getWordFrequenciesBySurah(language, surah); }
+    public List<com.tanxe.quran.data.dao.WordByWordDao.WordWithTranslation> getWordsWithTranslations(String language) { return wordByWordDao.getWordsWithTranslations(language); }
+    public List<com.tanxe.quran.data.dao.WordByWordDao.WordWithTranslation> getWordsWithTranslationsBySurah(String language, int surah) { return wordByWordDao.getWordsWithTranslationsBySurah(language, surah); }
+    public List<com.tanxe.quran.data.dao.WordByWordDao.TranslationCount> getTranslationsForWord(String language, String arabicWord) { return wordByWordDao.getTranslationsForWord(language, arabicWord); }
     public void deleteWbw(String language) { wordByWordDao.deleteLanguage(language); }
 
     // === Bookmark operations ===
@@ -92,8 +115,140 @@ public class QuranRepository {
     public void markWordUnknown(String word) { knownWordDao.deleteWord(word); }
     public List<KnownWord> getAllKnownWords() { return knownWordDao.getAllKnownWords(); }
     public boolean isWordKnown(String word) { return knownWordDao.isKnown(word) > 0; }
+    public void clearAllKnownWords() { knownWordDao.deleteAll(); }
     public int getKnownWordCount() { return knownWordDao.getKnownCount(); }
     public int getTotalKnownFrequency() { return knownWordDao.getTotalKnownFrequency(); }
+
+    // === Edition Catalog ===
+    public void fetchAndCacheEditions() {
+        try {
+            QuranApiService api = ApiClient.getApiService();
+
+            // Fetch translations
+            Response<JsonObject> transResponse = api.getEditions("translation", "text").execute();
+            if (transResponse.isSuccessful() && transResponse.body() != null) {
+                parseAndInsertEditions(transResponse.body(), "translation");
+            }
+
+            // Fetch tafseers
+            Response<JsonObject> tafResponse = api.getEditions("tafseer", "text").execute();
+            if (tafResponse.isSuccessful() && tafResponse.body() != null) {
+                parseAndInsertEditions(tafResponse.body(), "tafseer");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error fetching editions", e);
+        }
+    }
+
+    private void parseAndInsertEditions(JsonObject response, String type) {
+        try {
+            JsonArray data = response.getAsJsonArray("data");
+            if (data == null) return;
+
+            List<EditionInfo> editions = new ArrayList<>();
+            for (JsonElement el : data) {
+                JsonObject obj = el.getAsJsonObject();
+                String identifier = obj.get("identifier").getAsString();
+                String name = obj.get("name").getAsString();
+                String language = obj.get("language").getAsString();
+                String englishName = obj.has("englishName") ? obj.get("englishName").getAsString() : name;
+                String direction = obj.has("direction") ? obj.get("direction").getAsString() : "ltr";
+
+                EditionInfo edition = new EditionInfo(identifier, englishName, language, name, type, direction);
+
+                // Check if already downloaded in translations/tafseers table
+                if ("translation".equals(type)) {
+                    int count = translationDao.getEditionCount(identifier);
+                    edition.isDownloaded = count > 0;
+                } else {
+                    int count = tafseerDao.getEditionCount(identifier);
+                    edition.isDownloaded = count > 0;
+                }
+
+                editions.add(edition);
+            }
+            editionInfoDao.insertAll(editions);
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing editions", e);
+        }
+    }
+
+    public List<EditionInfo> getEditionsByLanguage(String language) { return editionInfoDao.getByLanguage(language); }
+    public List<EditionInfo> getDownloadedEditions() { return editionInfoDao.getDownloaded(); }
+    public List<EditionInfo> getDownloadedEditionsByType(String type) { return editionInfoDao.getDownloadedByType(type); }
+    public List<String> getAllAvailableLanguages() { return editionInfoDao.getAllLanguages(); }
+    public List<EditionInfoDao.LanguageInfo> getAllLanguagesWithNames() { return editionInfoDao.getAllLanguagesWithNames(); }
+    public List<EditionInfo> getAllEditions() { return editionInfoDao.getAll(); }
+    public List<EditionInfo> getEditionsByType(String type) { return editionInfoDao.getByType(type); }
+    public EditionInfo getEditionByIdentifier(String identifier) { return editionInfoDao.getByIdentifier(identifier); }
+    public int getEditionCount() { return editionInfoDao.getCount(); }
+
+    public void updateEditionDownloadState(String identifier, boolean downloaded, int progress) {
+        editionInfoDao.updateDownloadState(identifier, downloaded, progress,
+                downloaded ? System.currentTimeMillis() : 0);
+    }
+
+    // === Reciter operations ===
+    public void initReciters() {
+        List<ReciterInfo> existing = reciterInfoDao.getAll();
+        if (existing == null || existing.isEmpty()) {
+            reciterInfoDao.insertAll(ReciterCatalog.getReciters());
+        }
+    }
+
+    public List<ReciterInfo> getAllReciters() { return reciterInfoDao.getAll(); }
+    public ReciterInfo getReciterByIdentifier(String identifier) { return reciterInfoDao.getByIdentifier(identifier); }
+
+    public String getSelectedReciter() { return prefs.getString("selected_reciter", "Alafasy_128kbps"); }
+    public void saveSelectedReciter(String identifier) { prefs.edit().putString("selected_reciter", identifier).apply(); }
+
+    public String getSelectedReciterName() {
+        String id = getSelectedReciter();
+        ReciterInfo info = reciterInfoDao.getByIdentifier(id);
+        return info != null ? info.name : "Mishary Rashid Alafasy";
+    }
+
+    // === Reading Progress ===
+    public void recordReadingSession(int surahNumber, int ayahNumber, int durationSeconds, String type) {
+        readingProgressDao.insert(new ReadingProgress(surahNumber, ayahNumber, durationSeconds, type));
+    }
+
+    public int getTodayReadingMinutes() {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        return readingProgressDao.getTodayReadTimeSeconds(cal.getTimeInMillis()) / 60;
+    }
+
+    public float getKhatmahPercentage() {
+        int uniqueAyahs = readingProgressDao.getUniqueAyahsRead();
+        return (uniqueAyahs * 100.0f) / 6236;
+    }
+
+    public int getReadingStreak() {
+        long thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000);
+        return readingProgressDao.getReadingDaysCount(thirtyDaysAgo);
+    }
+
+    // === Daily Verse ===
+    public Ayah getDailyVerse() {
+        // Use date as seed for consistent daily verse
+        Calendar cal = Calendar.getInstance();
+        int seed = cal.get(Calendar.YEAR) * 10000 + cal.get(Calendar.MONTH) * 100 + cal.get(Calendar.DAY_OF_MONTH);
+        Random random = new Random(seed);
+        int position = random.nextInt(6236);
+
+        int remaining = position;
+        for (int s = 0; s < com.tanxe.quran.util.QuranDataParser.SURAH_AYAH_COUNT.length; s++) {
+            if (remaining < com.tanxe.quran.util.QuranDataParser.SURAH_AYAH_COUNT[s]) {
+                return ayahDao.getAyah(s + 1, remaining + 1);
+            }
+            remaining -= com.tanxe.quran.util.QuranDataParser.SURAH_AYAH_COUNT[s];
+        }
+        return ayahDao.getRandomAyah();
+    }
 
     // === Search ===
     public List<Ayah> searchAll(String query) { return ayahDao.searchAyahs(query); }
@@ -101,6 +256,19 @@ public class QuranRepository {
     public List<Ayah> searchTranslation(String query) { return ayahDao.searchTranslation(query); }
     public List<Translation> searchInTranslation(String edition, String query) { return translationDao.searchInEdition(edition, query); }
     public List<Tafseer> searchInTafseer(String edition, String query) { return tafseerDao.searchInEdition(edition, query); }
+
+    // Search across all downloaded translations
+    public List<Translation> searchAllTranslations(String query) {
+        List<Translation> results = new ArrayList<>();
+        List<String> editions = translationDao.getAvailableEditions();
+        if (editions != null) {
+            for (String edition : editions) {
+                List<Translation> editionResults = translationDao.searchInEdition(edition, query);
+                if (editionResults != null) results.addAll(editionResults);
+            }
+        }
+        return results;
+    }
 
     // === Preferences ===
     public void saveCurrentPosition(int surah, int ayah) {
@@ -147,6 +315,15 @@ public class QuranRepository {
     public float getTranslationFontSize() { return prefs.getFloat("translation_font_size", 18f); }
     public void setTranslationFontSize(float size) { prefs.edit().putFloat("translation_font_size", size).apply(); }
 
+    public void setPlaybackSpeed(float speed) { prefs.edit().putFloat("playback_speed", speed).apply(); }
+    public float getPlaybackSpeed() { return prefs.getFloat("playback_speed", 1.0f); }
+
+    public void setDailyReadingGoal(int minutes) { prefs.edit().putInt("daily_reading_goal", minutes).apply(); }
+    public int getDailyReadingGoal() { return prefs.getInt("daily_reading_goal", 15); }
+
+    public void setShowTranslation(boolean show) { prefs.edit().putBoolean("show_translation", show).apply(); }
+    public boolean getShowTranslation() { return prefs.getBoolean("show_translation", true); }
+
     // === Download state tracking ===
     public void setDownloadState(String edition, String state) {
         prefs.edit().putString("dl_state_" + edition, state).apply();
@@ -160,4 +337,7 @@ public class QuranRepository {
     public int getDownloadProgress(String edition) {
         return prefs.getInt("dl_progress_" + edition, 0);
     }
+
+    public boolean isEditionCatalogLoaded() { return prefs.getBoolean("edition_catalog_loaded", false); }
+    public void setEditionCatalogLoaded(boolean loaded) { prefs.edit().putBoolean("edition_catalog_loaded", loaded).apply(); }
 }

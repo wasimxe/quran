@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.tanxe.quran.app-mergeDebugResources-45:/values-sw600dp-v13/values-sw600dp-v13.xml",
+            "outputFile": "com.tanxe.quran.app-mergeDebugResources-49:/values-sw600dp-v13/values-sw600dp-v13.xml",
             "map": [
                 {
                     "source": "C:\\Users\\TanxeStudio\\.gradle\\caches\\transforms-3\\7078c37ce8cd3af2f2ed60babd87ea3b\\transformed\\material-1.11.0\\res\\values-sw600dp-v13\\values-sw600dp-v13.xml",

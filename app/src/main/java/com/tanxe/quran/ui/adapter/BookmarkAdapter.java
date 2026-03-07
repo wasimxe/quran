@@ -9,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.card.MaterialCardView;
 import com.tanxe.quran.R;
 import com.tanxe.quran.data.entity.Bookmark;
 import com.tanxe.quran.theme.ThemeManager;
@@ -58,6 +59,12 @@ public class BookmarkAdapter extends RecyclerView.Adapter<BookmarkAdapter.ViewHo
         holder.tvSurah.setTextColor(theme.getPrimaryTextColor());
         holder.tvRef.setTextColor(theme.getAccentColor());
         holder.tvNote.setTextColor(theme.getSecondaryTextColor());
+
+        // Theme the card background and delete icon
+        if (holder.itemView instanceof MaterialCardView) {
+            ((MaterialCardView) holder.itemView).setCardBackgroundColor(theme.getCardColor());
+        }
+        holder.btnDelete.setColorFilter(theme.getErrorColor());
 
         holder.itemView.setOnClickListener(v -> clickListener.onClick(bookmark));
         holder.btnDelete.setOnClickListener(v -> deleteListener.onDelete(bookmark));

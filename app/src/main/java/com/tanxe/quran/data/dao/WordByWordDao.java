@@ -29,8 +29,32 @@ public interface WordByWordDao {
     @Query("SELECT arabicWord, COUNT(*) as frequency FROM word_by_word WHERE language = :language GROUP BY arabicWord ORDER BY frequency DESC")
     List<WordFrequency> getWordFrequencies(String language);
 
+    @Query("SELECT arabicWord, COUNT(*) as frequency FROM word_by_word WHERE language = :language AND surahNumber = :surah GROUP BY arabicWord ORDER BY frequency DESC")
+    List<WordFrequency> getWordFrequenciesBySurah(String language, int surah);
+
+    @Query("SELECT arabicWord, translation, COUNT(*) as frequency FROM word_by_word WHERE language = :language GROUP BY arabicWord ORDER BY frequency DESC")
+    List<WordWithTranslation> getWordsWithTranslations(String language);
+
+    @Query("SELECT arabicWord, translation, COUNT(*) as frequency FROM word_by_word WHERE language = :language AND surahNumber = :surah GROUP BY arabicWord ORDER BY frequency DESC")
+    List<WordWithTranslation> getWordsWithTranslationsBySurah(String language, int surah);
+
+    /** Get all distinct translations for a specific Arabic word */
+    @Query("SELECT translation, COUNT(*) as cnt FROM word_by_word WHERE language = :language AND arabicWord = :arabicWord GROUP BY translation ORDER BY cnt DESC")
+    List<TranslationCount> getTranslationsForWord(String language, String arabicWord);
+
+    static class TranslationCount {
+        public String translation;
+        public int cnt;
+    }
+
     static class WordFrequency {
         public String arabicWord;
+        public int frequency;
+    }
+
+    static class WordWithTranslation {
+        public String arabicWord;
+        public String translation;
         public int frequency;
     }
 }

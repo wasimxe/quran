@@ -2,7 +2,10 @@
 <resources>
     <string name="app_name">Al-Quran</string>
     <string name="tab_read">Quran</string>
+    <string name="tab_surahs">Surahs</string>
     <string name="tab_search">Search</string>
+    <string name="tab_library">Library</string>
+    <string name="tab_more">More</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Navigation -->
@@ -131,4 +134,43 @@
 
     <string name="ayahs_count">%d ayahs</string>
     <string name="surah_format">%1$d. %2$s</string>
+
+    <!-- New strings for overhaul -->
+    <string name="search_surah_hint">Search surahs\u2026</string>
+    <string name="search_library_hint">Search library\u2026</string>
+    <string name="reading_progress">Reading Progress</string>
+    <string name="today">Today</string>
+    <string name="khatmah">Khatmah</string>
+    <string name="streak">Streak</string>
+    <string name="theme_amoled">AMOLED Black</string>
+    <string name="theme_ocean">Ocean Teal</string>
+    <string name="about_text">Al-Quran is a comprehensive Quran reading, learning, and listening app.\n\nFeatures:\n\u2022 114 Surahs with Arabic text\n\u2022 Multi-language translations &amp; tafseers\n\u2022 Word-by-word translation\n\u2022 20+ Quran reciters\n\u2022 Beautiful themes\n\u2022 Bookmarks &amp; reading progress\n\nAll data sourced from alquran.cloud and everyayah.com</string>
+    <string name="company_name">Tanxe Studio</string>
+    <string name="company_website">https://www.tanxe.com</string>
+    <string name="company_email">info@tanxe.com</string>
+    <string name="company_whatsapp">+92 345 5407008</string>
+    <string name="daily_verse">Daily Verse</string>
+    <string name="reciter">Reciter</string>
+    <string name="speed">Speed</string>
+    <string name="select_reciter">Select Reciter</string>
+    <string name="notification_channel_daily">Daily Verse</string>
+    <string name="notification_channel_desc">Daily verse from the Quran</string>
+
+    <!-- Accessibility -->
+    <string name="cd_playback_speed">Playback speed</string>
+    <string name="cd_reciter_name">Current reciter, tap to change</string>
+    <string name="cd_surah_name">Current surah, tap to select</string>
+    <string name="cd_ayah_counter">Ayah counter, tap to go to ayah</string>
+    <string name="cd_mode_reading">Switch to reading mode</string>
+    <string name="cd_mode_learning">Switch to learning mode</string>
+
+    <!-- Quiz mode -->
+    <string name="quiz_mode">Quiz</string>
+    <string name="quiz_correct">Correct!</string>
+    <string name="quiz_wrong">Wrong</string>
+    <string name="quiz_score">Score: %1$d / %2$d</string>
+    <string name="comprehension">Comprehension</string>
+
+    <!-- Share card -->
+    <string name="share_as_image">Share as Image</string>
 </resources>

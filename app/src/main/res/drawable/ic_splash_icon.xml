@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+
+    <!-- Outer ornamental circle -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M120,20 A100,100 0 1,1 119.99,20 Z M120,26 A94,94 0 1,0 120.01,26 Z" />
+
+    <!-- Second decorative ring -->
+    <path
+        android:fillColor="#D4AF37"
+        android:alpha="0.35"
+        android:pathData="M120,30 A90,90 0 1,1 119.99,30 Z M120,34 A86,86 0 1,0 120.01,34 Z" />
+
+    <!-- Inner subtle ring -->
+    <path
+        android:fillColor="#D4AF37"
+        android:alpha="0.2"
+        android:pathData="M120,38 A82,82 0 1,1 119.99,38 Z M120,40 A80,80 0 1,0 120.01,40 Z" />
+
+    <!-- Open book - left page -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M120,90 L120,180 Q100,172 68,176 L68,86 Q100,82 120,90 Z" />
+
+    <!-- Open book - right page -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M120,90 L120,180 Q140,172 172,176 L172,86 Q140,82 120,90 Z" />
+
+    <!-- Book spine glow -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:alpha="0.25"
+        android:pathData="M118.5,90 L121.5,90 L121.5,180 L118.5,180 Z" />
+
+    <!-- Left page text lines -->
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M78,102 L114,98" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M76,112 L114,108" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M75,122 L114,118" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M74,132 L114,128" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M73,142 L114,138" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M72,152 L114,148" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M71,162 L114,158" />
+
+    <!-- Right page text lines -->
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M126,98 L162,102" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M126,108 L164,112" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M126,118 L165,122" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M126,128 L166,132" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M126,138 L167,142" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M126,148 L168,152" />
+    <path
+        android:strokeColor="#0A2E1F"
+        android:strokeWidth="1"
+        android:pathData="M126,158 L169,162" />
+
+    <!-- Crescent moon -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M120,42 A24,24 0 1,1 120,90 A18,18 0 1,0 120,42 Z" />
+
+    <!-- Star -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M148,56 L150.8,63.6 L159,63.6 L152.4,68.4 L155,76 L148,71.2 L141,76 L143.6,68.4 L137,63.6 L145.2,63.6 Z" />
+
+    <!-- Small decorative dots on circle (top) -->
+    <path
+        android:fillColor="#D4AF37"
+        android:alpha="0.6"
+        android:pathData="M120,22 A2,2 0 1,1 119.99,22 Z" />
+    <path
+        android:fillColor="#D4AF37"
+        android:alpha="0.6"
+        android:pathData="M120,218 A2,2 0 1,1 119.99,218 Z" />
+    <path
+        android:fillColor="#D4AF37"
+        android:alpha="0.6"
+        android:pathData="M22,120 A2,2 0 1,1 21.99,120 Z" />
+    <path
+        android:fillColor="#D4AF37"
+        android:alpha="0.6"
+        android:pathData="M218,120 A2,2 0 1,1 217.99,120 Z" />
+
+</vector>

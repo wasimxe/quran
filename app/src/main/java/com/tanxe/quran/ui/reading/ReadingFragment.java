@@ -3,13 +3,17 @@ package com.tanxe.quran.ui.reading;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.NumberPicker;
@@ -23,15 +27,20 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.chip.ChipGroup;
+import com.tanxe.quran.MainActivity;
 import com.tanxe.quran.R;
 import com.tanxe.quran.audio.AudioPlayerManager;
 import com.tanxe.quran.data.dao.AyahDao;
 import com.tanxe.quran.data.entity.Ayah;
 import com.tanxe.quran.data.entity.Bookmark;
+import com.tanxe.quran.data.entity.ReciterInfo;
 import com.tanxe.quran.data.repository.QuranRepository;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.ui.adapter.AyahPagerAdapter;
+import com.tanxe.quran.ui.adapter.MushafAdapter;
+import com.tanxe.quran.ui.learn.LearnFragment;
+import com.tanxe.quran.ui.share.ShareCardGenerator;
+import com.tanxe.quran.util.Localization;
 import com.tanxe.quran.util.QuranDataParser;
 
 import java.util.ArrayList;
@@ -45,6 +54,7 @@ public class ReadingFragment extends Fragment {
     private RecyclerView recyclerView;
     private LinearLayoutManager layoutManager;
     private AyahPagerAdapter pagerAdapter;
+    private MushafAdapter mushafAdapter;
 
     // Pinch-to-zoom
     private ScaleGestureDetector scaleGestureDetector;
@@ -56,24 +66,33 @@ public class ReadingFragment extends Fragment {
     // Header views
     private TextView tvSurahName, tvAyahCounter, tvJuzBadge;
     private ImageButton btnBookmark;
-    private TextView btnModeReading, btnModeLearning;
 
-    // Source bar (learning mode)
-    private View sourceBar;
+    // Display mode buttons (instant switching)
+    private TextView btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw;
+
+    // Source spinner
     private Spinner spinnerSource;
-    private ChipGroup sourceChips;
 
     // Toolbar
     private ImageButton btnPrevious, btnPlay, btnNext, btnRepeat, btnShare, btnRandom;
+    private TextView btnSpeed, tvReciterName;
     private View floatingToolbar;
 
     private Typeface arabicFont, urduFont;
     private List<AyahDao.SurahInfo> surahs = new ArrayList<>();
     private int currentSurah = 1;
     private int currentAyah = 1;
-    private boolean isLearningMode = false;
-    private String displayMode = "translation";
+    private String displayMode = "translation"; // arabic, translation, tafseer, wbw
     private boolean isPlaying = false;
+    private boolean continuousPlay = false;
+
+    // Reading progress tracking
+    private long sessionStartTime = 0;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    // Playback speeds
+    private final float[] SPEEDS = {0.75f, 1.0f, 1.25f, 1.5f, 2.0f};
+    private int currentSpeedIndex = 1;
 
     @Nullable
     @Override
@@ -97,23 +116,41 @@ public class ReadingFragment extends Fragment {
             urduFont = Typeface.DEFAULT;
         }
 
-        // Init font sizes from prefs
         currentArabicSize = repository.getArabicFontSize();
         currentTransSize = repository.getTranslationFontSize();
+        continuousPlay = repository.getContinuousPlay();
+
+        // Set reciter from preferences
+        String reciterFolder = repository.getSelectedReciter();
+        audioPlayer.setReciter(reciterFolder);
+        audioPlayer.setPlaybackSpeed(repository.getPlaybackSpeed());
+
+        // Restore speed index
+        float savedSpeed = repository.getPlaybackSpeed();
+        for (int i = 0; i < SPEEDS.length; i++) {
+            if (Math.abs(SPEEDS[i] - savedSpeed) < 0.01f) {
+                currentSpeedIndex = i;
+                break;
+            }
+        }
 
         initViews(view);
         applyTheme();
         loadSurahs();
 
-        // Restore position
+        // Restore position and display mode
         int[] pos = repository.getCurrentPosition();
         currentSurah = pos[0];
         currentAyah = pos[1];
         displayMode = repository.getDisplayMode();
+        if (displayMode == null || displayMode.isEmpty()) displayMode = "translation";
 
         setupRecyclerView();
         setupPinchToZoom();
         setupGestures(view);
+        setupAudioCallback();
+        updateModeButtons();
+        updateSourceSpinner();
     }
 
     private void initViews(View view) {
@@ -123,14 +160,14 @@ public class ReadingFragment extends Fragment {
         tvJuzBadge = view.findViewById(R.id.tv_juz_badge);
         btnBookmark = view.findViewById(R.id.btn_bookmark);
 
-        // Mode toggle
-        btnModeReading = view.findViewById(R.id.btn_mode_reading);
-        btnModeLearning = view.findViewById(R.id.btn_mode_learning);
+        // Display mode buttons
+        btnModeArabic = view.findViewById(R.id.btn_mode_arabic);
+        btnModeTranslation = view.findViewById(R.id.btn_mode_translation);
+        btnModeTafseer = view.findViewById(R.id.btn_mode_tafseer);
+        btnModeWbw = view.findViewById(R.id.btn_mode_wbw);
 
-        // Source bar
-        sourceBar = view.findViewById(R.id.source_bar);
+        // Source spinner
         spinnerSource = view.findViewById(R.id.spinner_source);
-        sourceChips = view.findViewById(R.id.source_chips);
 
         // RecyclerView
         recyclerView = view.findViewById(R.id.rv_ayahs);
@@ -143,19 +180,37 @@ public class ReadingFragment extends Fragment {
         btnRepeat = view.findViewById(R.id.btn_repeat);
         btnShare = view.findViewById(R.id.btn_share);
         btnRandom = view.findViewById(R.id.btn_random);
+        btnSpeed = view.findViewById(R.id.btn_speed);
+        tvReciterName = view.findViewById(R.id.tv_reciter_name);
 
-        // Tap surah name → open bottom sheet
+        // Set speed text
+        btnSpeed.setText(SPEEDS[currentSpeedIndex] + "x");
+
+        // Set reciter name
+        updateReciterName();
+
+        // Tap surah name → surah selector
         tvSurahName.setOnClickListener(v -> openSurahSelector());
-
-        // Tap ayah counter → number picker dialog
+        // Tap ayah counter → ayah picker
         tvAyahCounter.setOnClickListener(v -> openAyahPicker());
+        // Tap juz badge → juz selector
+        tvJuzBadge.setOnClickListener(v -> openJuzSelector());
 
-        // Mode toggle
-        btnModeReading.setOnClickListener(v -> setMode(false));
-        btnModeLearning.setOnClickListener(v -> setMode(true));
+        btnBookmark.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToBookmarks();
+            }
+        });
 
-        // Bookmark
-        btnBookmark.setOnClickListener(v -> toggleBookmark());
+        // Instant mode switching — ensure clickable
+        btnModeArabic.setClickable(true);
+        btnModeTranslation.setClickable(true);
+        btnModeTafseer.setClickable(true);
+        btnModeWbw.setClickable(true);
+        btnModeArabic.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: arabic"); switchDisplayMode("arabic"); });
+        btnModeTranslation.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: translation"); switchDisplayMode("translation"); });
+        btnModeTafseer.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: tafseer"); switchDisplayMode("tafseer"); });
+        btnModeWbw.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: wbw"); switchDisplayMode("wbw"); });
 
         // Toolbar buttons
         btnPrevious.setOnClickListener(v -> navigatePrev());
@@ -165,35 +220,270 @@ public class ReadingFragment extends Fragment {
         btnShare.setOnClickListener(v -> shareAyah());
         btnRandom.setOnClickListener(v -> loadRandom());
 
-        // Source chips (learning mode)
-        sourceChips.setOnCheckedStateChangeListener((group, checkedIds) -> {
-            if (checkedIds.isEmpty()) return;
-            int id = checkedIds.get(0);
-            if (id == R.id.chip_translation) displayMode = "translation";
-            else if (id == R.id.chip_tafseer) displayMode = "tafseer";
-            else if (id == R.id.chip_wbw) displayMode = "wbw";
-            repository.saveDisplayMode(displayMode);
-            setupSourceSpinner();
-            if (pagerAdapter != null) {
-                pagerAdapter.setDisplayMode(displayMode);
-            }
-        });
+        // Speed button
+        btnSpeed.setOnClickListener(v -> cycleSpeed());
+
+        // Reciter name tap
+        tvReciterName.setOnClickListener(v -> showReciterSelector());
 
         btnRepeat.setAlpha(repository.getRepeatMode() ? 1.0f : 0.5f);
+
+        // Reading Point button (in toolbar)
+        ImageButton btnReadingPoint = view.findViewById(R.id.fab_reading_point);
+        btnReadingPoint.setOnClickListener(v -> {
+            int[] pos = repository.getCurrentPosition();
+            int rpSurah = pos[0];
+            int rpAyah = pos[1];
+            navigateToAyah(rpSurah, rpAyah);
+            // Highlight after scroll settles
+            recyclerView.post(() -> {
+                if ("arabic".equals(displayMode)) {
+                    if (mushafAdapter != null) {
+                        mushafAdapter.setHighlightedAyah(rpSurah, rpAyah);
+                    }
+                } else {
+                    int flatPos = AyahPagerAdapter.surahAyahToPosition(rpSurah, rpAyah);
+                    pagerAdapter.setPlayingPosition(flatPos);
+                }
+            });
+        });
+
+        // Learn Mode button (in toolbar)
+        ImageButton btnLearn = view.findViewById(R.id.fab_learn);
+        btnLearn.setOnClickListener(v -> {
+            LearnFragment learnDialog = new LearnFragment();
+            learnDialog.show(getChildFragmentManager(), "learn_mode");
+        });
+    }
+
+    private void switchDisplayMode(String mode) {
+        android.util.Log.d("ReadingFragment", "switchDisplayMode: " + displayMode + " → " + mode);
+        String oldMode = displayMode;
+        displayMode = mode;
+        repository.saveDisplayMode(mode);
+        updateModeButtons();
+        updateSourceSpinner();
+
+        if ("arabic".equals(mode) && !"arabic".equals(oldMode)) {
+            // Switch to mushaf adapter (surah-level continuous text)
+            if (mushafAdapter == null) {
+                mushafAdapter = new MushafAdapter(repository, theme, arabicFont);
+                setupMushafListener();
+            }
+            recyclerView.setAdapter(mushafAdapter);
+            // Scroll to current surah
+            recyclerView.scrollToPosition(MushafAdapter.surahToPosition(currentSurah));
+        } else if (!"arabic".equals(mode) && "arabic".equals(oldMode)) {
+            // Switch back to ayah adapter
+            recyclerView.setAdapter(pagerAdapter);
+            pagerAdapter.setDisplayMode(mode);
+            int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
+            recyclerView.scrollToPosition(pos);
+        } else if (pagerAdapter != null) {
+            pagerAdapter.setDisplayMode(mode);
+        }
+    }
+
+    private void updateModeButtons() {
+        // Set localized labels
+        String lang = repository.getLanguage();
+        btnModeArabic.setText(Localization.get(lang, Localization.MODE_ARABIC));
+        btnModeTranslation.setText(Localization.get(lang, Localization.MODE_TRANSLATION));
+        btnModeTafseer.setText(Localization.get(lang, Localization.MODE_TAFSEER));
+        btnModeWbw.setText(Localization.get(lang, Localization.MODE_WBW));
+
+        // Reset all buttons to inactive style
+        TextView[] allBtns = {btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw};
+        for (TextView btn : allBtns) {
+            btn.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            btn.setTextColor(theme.getSecondaryTextColor());
+        }
+
+        // Highlight active button with themed pill
+        TextView activeBtn;
+        switch (displayMode) {
+            case "arabic": activeBtn = btnModeArabic; break;
+            case "tafseer": activeBtn = btnModeTafseer; break;
+            case "wbw": activeBtn = btnModeWbw; break;
+            default: activeBtn = btnModeTranslation; break;
+        }
+        GradientDrawable activeBg = new GradientDrawable();
+        activeBg.setColor(theme.getModePillActiveColor());
+        activeBg.setCornerRadius(60);
+        activeBtn.setBackground(activeBg);
+        activeBtn.setTextColor(theme.isDarkTheme() ? 0xFFFFFFFF : 0xFF000000);
+    }
+
+    private void updateSourceSpinner() {
+        // Show spinner for tafseer and translation (to pick edition), hide for arabic/wbw
+        if ("tafseer".equals(displayMode) || "translation".equals(displayMode)) {
+            spinnerSource.setVisibility(View.VISIBLE);
+            setupSourceSpinner();
+        } else if ("wbw".equals(displayMode)) {
+            spinnerSource.setVisibility(View.VISIBLE);
+            setupSourceSpinner();
+        } else {
+            spinnerSource.setVisibility(View.GONE);
+        }
+    }
+
+    // Stores the raw edition identifiers parallel to the spinner display names
+    private List<String> sourceIdentifiers = new ArrayList<>();
+    private boolean spinnerInitializing = false;
+
+    private void setupSourceSpinner() {
+        repository.getExecutor().execute(() -> {
+            List<String> displayNames = new ArrayList<>();
+            List<String> identifiers = new ArrayList<>();
+            int selectedIndex = 0;
+
+            if ("translation".equals(displayMode)) {
+                String currentEdition = repository.getSelectedTranslation();
+                displayNames.add("ur.jalandhry (" + Localization.get(repository.getLanguage(), Localization.BUILT_IN) + ")");
+                identifiers.add("ur.jalandhry");
+                List<String> editions = repository.getAvailableTranslations();
+                if (editions != null) {
+                    for (String e : editions) {
+                        displayNames.add(e);
+                        identifiers.add(e);
+                    }
+                }
+                // Find selected index
+                for (int i = 0; i < identifiers.size(); i++) {
+                    if (identifiers.get(i).equals(currentEdition)) { selectedIndex = i; break; }
+                }
+            } else if ("tafseer".equals(displayMode)) {
+                String currentEdition = repository.getSelectedTafseer();
+                List<String> editions = repository.getAvailableTafseers();
+                if (editions != null && !editions.isEmpty()) {
+                    for (String e : editions) {
+                        displayNames.add(e);
+                        identifiers.add(e);
+                    }
+                    for (int i = 0; i < identifiers.size(); i++) {
+                        if (identifiers.get(i).equals(currentEdition)) { selectedIndex = i; break; }
+                    }
+                } else {
+                    displayNames.add(Localization.get(repository.getLanguage(), Localization.NO_TAFSEER));
+                    identifiers.add("");
+                }
+            } else if ("wbw".equals(displayMode)) {
+                String currentLang = repository.getSelectedWbwLanguage();
+                List<String> langs = repository.getAvailableWbwLanguages();
+                if (langs != null && !langs.isEmpty()) {
+                    for (String l : langs) {
+                        displayNames.add(Localization.get(repository.getLanguage(), Localization.MODE_WBW) + " - " + l);
+                        identifiers.add(l);
+                    }
+                    for (int i = 0; i < identifiers.size(); i++) {
+                        if (identifiers.get(i).equals(currentLang)) { selectedIndex = i; break; }
+                    }
+                } else {
+                    displayNames.add(Localization.get(repository.getLanguage(), Localization.NO_WBW));
+                    identifiers.add("");
+                }
+            }
+
+            if (getActivity() != null) {
+                List<String> finalNames = displayNames;
+                List<String> finalIds = identifiers;
+                int finalSelected = selectedIndex;
+                requireActivity().runOnUiThread(() -> {
+                    sourceIdentifiers = finalIds;
+                    spinnerInitializing = true;
+                    spinnerSource.setAdapter(new ArrayAdapter<>(requireContext(),
+                            android.R.layout.simple_spinner_dropdown_item, finalNames));
+                    spinnerSource.setSelection(finalSelected);
+                    spinnerSource.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> parent, View v, int position, long id) {
+                            if (spinnerInitializing) { spinnerInitializing = false; return; }
+                            if (position >= sourceIdentifiers.size()) return;
+                            String selectedId = sourceIdentifiers.get(position);
+                            if (selectedId.isEmpty()) return;
+
+                            switch (displayMode) {
+                                case "translation":
+                                    repository.saveSelectedTranslation(selectedId);
+                                    break;
+                                case "tafseer":
+                                    repository.saveSelectedTafseer(selectedId);
+                                    break;
+                                case "wbw":
+                                    repository.saveSelectedWbwLanguage(selectedId);
+                                    break;
+                            }
+                            // Refresh content
+                            if (pagerAdapter != null) pagerAdapter.notifyDataSetChanged();
+                        }
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {}
+                    });
+                });
+            }
+        });
+    }
+
+    private void setupAudioCallback() {
+        audioPlayer.setCallback(new AudioPlayerManager.PlaybackCallback() {
+            @Override
+            public void onPlaybackEnded() {
+                handler.post(() -> {
+                    if (continuousPlay || repository.getContinuousPlay()) {
+                        int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
+                        if (pos < QuranDataParser.TOTAL_AYAHS - 1) {
+                            int nextPos = pos + 1;
+                            int[] sa = AyahPagerAdapter.positionToSurahAyah(nextPos);
+                            currentSurah = sa[0];
+                            currentAyah = sa[1];
+                            updateHeader();
+                            recyclerView.smoothScrollToPosition(nextPos);
+                            pagerAdapter.setPlayingPosition(nextPos);
+                            audioPlayer.playAyah(currentSurah, currentAyah, repository.getRepeatMode());
+                        } else {
+                            isPlaying = false;
+                            btnPlay.setImageResource(R.drawable.ic_play);
+                            pagerAdapter.setPlayingPosition(-1);
+                        }
+                    } else {
+                        isPlaying = false;
+                        btnPlay.setImageResource(R.drawable.ic_play);
+                        pagerAdapter.setPlayingPosition(-1);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                handler.post(() -> {
+                    isPlaying = false;
+                    btnPlay.setImageResource(R.drawable.ic_play);
+                    pagerAdapter.setPlayingPosition(-1);
+                });
+            }
+        });
     }
 
     private void setupRecyclerView() {
         layoutManager = new LinearLayoutManager(requireContext());
         recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setItemViewCacheSize(20);
 
         pagerAdapter = new AyahPagerAdapter(repository, theme, arabicFont, urduFont);
-        pagerAdapter.setLearningMode(isLearningMode);
         pagerAdapter.setDisplayMode(displayMode);
-        recyclerView.setAdapter(pagerAdapter);
+        pagerAdapter.setLongPressListener((surah, ayah, position) -> showAyahActionsSheet(surah, ayah, position));
 
-        // Scroll to saved position
-        int startPos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
-        recyclerView.scrollToPosition(startPos);
+        if ("arabic".equals(displayMode)) {
+            // Start with mushaf adapter for arabic mode
+            mushafAdapter = new MushafAdapter(repository, theme, arabicFont);
+            setupMushafListener();
+            recyclerView.setAdapter(mushafAdapter);
+            recyclerView.scrollToPosition(MushafAdapter.surahToPosition(currentSurah));
+        } else {
+            recyclerView.setAdapter(pagerAdapter);
+            int startPos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
+            recyclerView.scrollToPosition(startPos);
+        }
 
         // Track scroll to update header
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -201,12 +491,20 @@ public class ReadingFragment extends Fragment {
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 int firstVisible = layoutManager.findFirstVisibleItemPosition();
                 if (firstVisible != RecyclerView.NO_POSITION) {
-                    int[] sa = AyahPagerAdapter.positionToSurahAyah(firstVisible);
-                    if (sa[0] != currentSurah || sa[1] != currentAyah) {
-                        currentSurah = sa[0];
-                        currentAyah = sa[1];
-                        updateHeader();
-                        repository.saveCurrentPosition(currentSurah, currentAyah);
+                    if ("arabic".equals(displayMode)) {
+                        int surah = firstVisible + 1;
+                        if (surah != currentSurah) {
+                            currentSurah = surah;
+                            currentAyah = 1;
+                            updateHeader();
+                        }
+                    } else {
+                        int[] sa = AyahPagerAdapter.positionToSurahAyah(firstVisible);
+                        if (sa[0] != currentSurah || sa[1] != currentAyah) {
+                            currentSurah = sa[0];
+                            currentAyah = sa[1];
+                            updateHeader();
+                        }
                     }
                 }
             }
@@ -217,105 +515,54 @@ public class ReadingFragment extends Fragment {
 
     private void setupPinchToZoom() {
         scaleGestureDetector = new ScaleGestureDetector(requireContext(),
-            new ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                @Override
-                public boolean onScale(ScaleGestureDetector detector) {
-                    float factor = detector.getScaleFactor();
-                    float newArabic = Math.max(MIN_ARABIC_SP, Math.min(MAX_ARABIC_SP, currentArabicSize * factor));
-                    // Keep proportional ratio
-                    float ratio = currentTransSize / currentArabicSize;
-                    float newTrans = newArabic * ratio;
+                new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                    @Override
+                    public boolean onScale(ScaleGestureDetector detector) {
+                        float factor = detector.getScaleFactor();
+                        float newArabic = Math.max(MIN_ARABIC_SP, Math.min(MAX_ARABIC_SP, currentArabicSize * factor));
+                        float ratio = currentTransSize / currentArabicSize;
+                        float newTrans = newArabic * ratio;
 
-                    currentArabicSize = newArabic;
-                    currentTransSize = newTrans;
-                    pagerAdapter.updateFontSize(currentArabicSize, currentTransSize);
-                    return true;
-                }
+                        currentArabicSize = newArabic;
+                        currentTransSize = newTrans;
+                        pagerAdapter.updateFontSize(currentArabicSize, currentTransSize);
+                        if (mushafAdapter != null) mushafAdapter.updateFontSize(currentArabicSize);
+                        return true;
+                    }
 
-                @Override
-                public void onScaleEnd(ScaleGestureDetector detector) {
-                    // Persist to prefs
-                    repository.setArabicFontSize(currentArabicSize);
-                    repository.setTranslationFontSize(currentTransSize);
-                }
-            });
+                    @Override
+                    public void onScaleEnd(ScaleGestureDetector detector) {
+                        repository.setArabicFontSize(currentArabicSize);
+                        repository.setTranslationFontSize(currentTransSize);
+                    }
+                });
 
         recyclerView.setOnTouchListener((v, event) -> {
             scaleGestureDetector.onTouchEvent(event);
-            // Don't consume if not scaling — let RecyclerView scroll
             return scaleGestureDetector.isInProgress();
         });
     }
 
     private void setupGestures(View view) {
-        // Double-tap on header to toggle learning mode
+        // Double-tap on surah name to cycle modes (not on the whole header to avoid touch conflicts)
         GestureDetector gestureDetector = new GestureDetector(requireContext(),
-            new GestureDetector.SimpleOnGestureListener() {
-                @Override
-                public boolean onDoubleTap(@NonNull MotionEvent e) {
-                    setMode(!isLearningMode);
-                    return true;
-                }
-            });
+                new GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onDoubleTap(@NonNull MotionEvent e) {
+                        switch (displayMode) {
+                            case "translation": switchDisplayMode("tafseer"); break;
+                            case "tafseer": switchDisplayMode("wbw"); break;
+                            case "wbw": switchDisplayMode("arabic"); break;
+                            default: switchDisplayMode("translation"); break;
+                        }
+                        return true;
+                    }
+                });
 
-        view.findViewById(R.id.header_bar).setOnTouchListener((v, event) -> {
+        // Only attach double-tap to surah name row, NOT the whole header (avoids blocking mode buttons)
+        tvSurahName.setOnTouchListener((v, event) -> {
             gestureDetector.onTouchEvent(event);
             return false;
-        });
-    }
-
-    private void setMode(boolean learning) {
-        isLearningMode = learning;
-
-        // Update pill appearance
-        btnModeReading.setBackground(learning ? null :
-            requireContext().getDrawable(R.drawable.bg_mode_pill_active));
-        btnModeLearning.setBackground(learning ?
-            requireContext().getDrawable(R.drawable.bg_mode_pill_active) : null);
-
-        btnModeReading.setTextColor(learning ? theme.getSecondaryTextColor() : theme.getPrimaryTextColor());
-        btnModeLearning.setTextColor(learning ? theme.getPrimaryTextColor() : theme.getSecondaryTextColor());
-
-        // Show/hide source bar
-        sourceBar.setVisibility(learning ? View.VISIBLE : View.GONE);
-        spinnerSource.setVisibility(learning ? View.VISIBLE : View.GONE);
-
-        if (learning) {
-            setupSourceSpinner();
-        }
-
-        // Update adapter
-        if (pagerAdapter != null) {
-            pagerAdapter.setLearningMode(learning);
-        }
-    }
-
-    private void setupSourceSpinner() {
-        repository.getExecutor().execute(() -> {
-            List<String> sources = new ArrayList<>();
-            if ("translation".equals(displayMode)) {
-                sources.add("ur.jalandhry (Built-in)");
-                List<String> editions = repository.getAvailableTranslations();
-                if (editions != null) sources.addAll(editions);
-            } else if ("tafseer".equals(displayMode)) {
-                List<String> editions = repository.getAvailableTafseers();
-                if (editions != null) sources.addAll(editions);
-                if (sources.isEmpty()) sources.add("No tafseers downloaded");
-            } else {
-                List<String> langs = repository.getAvailableWbwLanguages();
-                if (langs != null) {
-                    for (String l : langs) sources.add("WBW - " + l);
-                }
-                if (sources.isEmpty()) sources.add("No WBW data downloaded");
-            }
-
-            if (getActivity() != null) {
-                List<String> finalSources = sources;
-                requireActivity().runOnUiThread(() -> {
-                    spinnerSource.setAdapter(new ArrayAdapter<>(requireContext(),
-                        android.R.layout.simple_spinner_dropdown_item, finalSources));
-                });
-            }
         });
     }
 
@@ -326,21 +573,15 @@ public class ReadingFragment extends Fragment {
         tvSurahName.setText(currentSurah + ". " + surah.surahNameEn + " (" + surah.surahNameAr + ")");
 
         int maxAyah = QuranDataParser.SURAH_AYAH_COUNT[currentSurah - 1];
-        tvAyahCounter.setText(currentAyah + " / " + maxAyah);
+        String ayahLabel = Localization.get(repository.getLanguage(), Localization.AYAH);
+        tvAyahCounter.setText(ayahLabel + " " + currentAyah + " / " + maxAyah);
 
-        // Determine juz
         repository.getExecutor().execute(() -> {
             Ayah ayah = repository.getAyah(currentSurah, currentAyah);
             if (ayah != null && getActivity() != null) {
                 requireActivity().runOnUiThread(() -> {
-                    tvJuzBadge.setText("Juz " + ayah.juzNumber);
-                });
-
-                // Update bookmark icon
-                boolean bookmarked = repository.isBookmarked(currentSurah, currentAyah);
-                requireActivity().runOnUiThread(() -> {
-                    btnBookmark.setImageResource(bookmarked ?
-                        R.drawable.ic_bookmark_filled : R.drawable.ic_bookmark);
+                    String juzLabel = Localization.get(repository.getLanguage(), Localization.JUZ);
+                    tvJuzBadge.setText(juzLabel + " " + ayah.juzNumber);
                 });
             }
         });
@@ -358,10 +599,14 @@ public class ReadingFragment extends Fragment {
     private void openSurahSelector() {
         SurahSelectorBottomSheet sheet = new SurahSelectorBottomSheet();
         sheet.setSurahs(surahs);
-        sheet.setOnSurahSelectedListener(surahNumber -> {
-            navigateToAyah(surahNumber, 1);
-        });
+        sheet.setOnSurahSelectedListener(surahNumber -> navigateToAyah(surahNumber, 1));
         sheet.show(getChildFragmentManager(), "surah_selector");
+    }
+
+    private void openJuzSelector() {
+        JuzSelectorBottomSheet sheet = new JuzSelectorBottomSheet();
+        sheet.setOnJuzSelectedListener((surah, ayah) -> navigateToAyah(surah, ayah));
+        sheet.show(getChildFragmentManager(), "juz_selector");
     }
 
     private void openAyahPicker() {
@@ -374,21 +619,23 @@ public class ReadingFragment extends Fragment {
         picker.setWrapSelectorWheel(false);
 
         new AlertDialog.Builder(requireContext())
-            .setTitle(getString(R.string.go_to_ayah))
-            .setView(picker)
-            .setPositiveButton(android.R.string.ok, (d, w) -> {
-                navigateToAyah(currentSurah, picker.getValue());
-            })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
+                .setTitle(Localization.get(repository.getLanguage(), Localization.GO_TO_AYAH))
+                .setView(picker)
+                .setPositiveButton(android.R.string.ok, (d, w) -> navigateToAyah(currentSurah, picker.getValue()))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     public void navigateToAyah(int surah, int ayah) {
         currentSurah = surah;
         currentAyah = ayah;
-        int pos = AyahPagerAdapter.surahAyahToPosition(surah, ayah);
-        if (recyclerView != null) {
-            recyclerView.scrollToPosition(pos);
+        if (recyclerView != null && layoutManager != null) {
+            if ("arabic".equals(displayMode)) {
+                layoutManager.scrollToPositionWithOffset(MushafAdapter.surahToPosition(surah), 0);
+            } else {
+                int pos = AyahPagerAdapter.surahAyahToPosition(surah, ayah);
+                layoutManager.scrollToPositionWithOffset(pos, 0);
+            }
         }
         updateHeader();
     }
@@ -412,32 +659,39 @@ public class ReadingFragment extends Fragment {
             Ayah ayah = repository.getRandomAyah();
             if (ayah != null && getActivity() != null) {
                 requireActivity().runOnUiThread(() ->
-                    navigateToAyah(ayah.surahNumber, ayah.ayahNumber));
+                        navigateToAyah(ayah.surahNumber, ayah.ayahNumber));
             }
         });
     }
 
-    private void toggleBookmark() {
+    private void showBookmarkList() {
         repository.getExecutor().execute(() -> {
-            boolean isBookmarked = repository.isBookmarked(currentSurah, currentAyah);
-            if (isBookmarked) {
-                repository.removeBookmark(currentSurah, currentAyah);
-            } else {
-                String surahName = "";
-                if (!surahs.isEmpty() && currentSurah <= surahs.size()) {
-                    surahName = surahs.get(currentSurah - 1).surahNameEn;
+            List<Bookmark> bookmarks = repository.getAllBookmarks();
+            if (getActivity() == null) return;
+            requireActivity().runOnUiThread(() -> {
+                if (bookmarks == null || bookmarks.isEmpty()) {
+                    Toast.makeText(requireContext(), Localization.get(repository.getLanguage(), Localization.NO_BOOKMARKS), Toast.LENGTH_SHORT).show();
+                    return;
                 }
-                repository.addBookmark(new Bookmark(currentSurah, currentAyah, surahName, ""));
-            }
-            if (getActivity() != null) {
-                requireActivity().runOnUiThread(() -> {
-                    btnBookmark.setImageResource(!isBookmarked ?
-                        R.drawable.ic_bookmark_filled : R.drawable.ic_bookmark);
-                    Toast.makeText(requireContext(),
-                        isBookmarked ? R.string.bookmark_removed : R.string.bookmark_added,
-                        Toast.LENGTH_SHORT).show();
-                });
-            }
+                String[] items = new String[bookmarks.size()];
+                for (int i = 0; i < bookmarks.size(); i++) {
+                    Bookmark b = bookmarks.get(i);
+                    String name = (b.surahName != null && !b.surahName.isEmpty()) ? b.surahName : Localization.get(repository.getLanguage(), Localization.SURAH) + " " + b.surahNumber;
+                    items[i] = name + " — " + Localization.get(repository.getLanguage(), Localization.AYAH) + " " + b.ayahNumber;
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle(Localization.get(repository.getLanguage(), Localization.BOOKMARKS))
+                        .setItems(items, (dialog, which) -> {
+                            Bookmark b = bookmarks.get(which);
+                            navigateToAyah(b.surahNumber, b.ayahNumber);
+                            if (!"arabic".equals(displayMode)) {
+                                int flatPos = AyahPagerAdapter.surahAyahToPosition(b.surahNumber, b.ayahNumber);
+                                pagerAdapter.setPlayingPosition(flatPos);
+                            }
+                        })
+                        .setNegativeButton(Localization.get(repository.getLanguage(), Localization.CLOSE), null)
+                        .show();
+            });
         });
     }
 
@@ -446,8 +700,262 @@ public class ReadingFragment extends Fragment {
             Ayah ayah = repository.getAyah(currentSurah, currentAyah);
             if (ayah == null || getActivity() == null) return;
 
-            String text = ayah.arabicText + "\n\n" + ayah.defaultTranslation +
-                "\n\n[" + ayah.surahNameEn + " " + currentSurah + ":" + currentAyah + "]";
+            String translationText = "";
+            String edition = repository.getSelectedTranslation();
+            if ("ur.jalandhry".equals(edition)) {
+                translationText = ayah.defaultTranslation;
+            } else {
+                com.tanxe.quran.data.entity.Translation trans = repository.getTranslation(
+                        currentSurah, currentAyah, edition);
+                translationText = trans != null ? trans.text : ayah.defaultTranslation;
+            }
+
+            String finalTransText = translationText;
+            requireActivity().runOnUiThread(() -> {
+                String lang = repository.getLanguage();
+                String[] options = {Localization.get(lang, Localization.SHARE), Localization.get(lang, Localization.SHARE_IMAGE)};
+                new AlertDialog.Builder(requireContext())
+                        .setTitle(Localization.get(lang, Localization.SHARE))
+                        .setItems(options, (dialog, which) -> {
+                            if (which == 0) {
+                                String text = ayah.arabicText + "\n\n" +
+                                        (finalTransText != null ? finalTransText : "") +
+                                        "\n\n[" + ayah.surahNameEn + " " + currentSurah + ":" + currentAyah + "]";
+                                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                                shareIntent.setType("text/plain");
+                                shareIntent.putExtra(Intent.EXTRA_TEXT, text);
+                                startActivity(Intent.createChooser(shareIntent, getString(R.string.share_ayah)));
+                            } else {
+                                ShareCardGenerator.shareAyahAsImage(requireContext(), ayah,
+                                        finalTransText, arabicFont);
+                            }
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private void togglePlay() {
+        if (isPlaying) {
+            audioPlayer.stop();
+            btnPlay.setImageResource(R.drawable.ic_play);
+            isPlaying = false;
+            pagerAdapter.setPlayingPosition(-1);
+        } else {
+            continuousPlay = true;
+            repository.setContinuousPlay(true);
+
+            audioPlayer.playAyah(currentSurah, currentAyah, repository.getRepeatMode());
+            btnPlay.setImageResource(R.drawable.ic_pause);
+            isPlaying = true;
+
+            int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
+            pagerAdapter.setPlayingPosition(pos);
+        }
+    }
+
+    private void toggleRepeat() {
+        boolean repeat = !repository.getRepeatMode();
+        repository.setRepeatMode(repeat);
+        btnRepeat.setAlpha(repeat ? 1.0f : 0.5f);
+        audioPlayer.setRepeatMode(repeat);
+    }
+
+    private void cycleSpeed() {
+        currentSpeedIndex = (currentSpeedIndex + 1) % SPEEDS.length;
+        float speed = SPEEDS[currentSpeedIndex];
+        audioPlayer.setPlaybackSpeed(speed);
+        repository.setPlaybackSpeed(speed);
+        btnSpeed.setText(speed + "x");
+    }
+
+    private void showReciterSelector() {
+        repository.getExecutor().execute(() -> {
+            List<ReciterInfo> reciters = repository.getAllReciters();
+            if (reciters == null || reciters.isEmpty() || getActivity() == null) return;
+
+            String[] names = new String[reciters.size()];
+            String[] folders = new String[reciters.size()];
+            for (int i = 0; i < reciters.size(); i++) {
+                names[i] = reciters.get(i).name;
+                folders[i] = reciters.get(i).subfolder;
+            }
+
+            requireActivity().runOnUiThread(() -> {
+                new AlertDialog.Builder(requireContext())
+                        .setTitle(Localization.get(repository.getLanguage(), Localization.SELECT_RECITER))
+                        .setItems(names, (dialog, which) -> {
+                            repository.saveSelectedReciter(folders[which]);
+                            audioPlayer.setReciter(folders[which]);
+                            updateReciterName();
+                            if (isPlaying) {
+                                audioPlayer.playAyah(currentSurah, currentAyah, repository.getRepeatMode());
+                            }
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private void updateReciterName() {
+        repository.getExecutor().execute(() -> {
+            String name = repository.getSelectedReciterName();
+            if (getActivity() != null) {
+                requireActivity().runOnUiThread(() -> {
+                    if (tvReciterName != null) tvReciterName.setText(name);
+                });
+            }
+        });
+    }
+
+    /** Fancy bottom sheet for ayah actions on long press */
+    private void setupMushafListener() {
+        if (mushafAdapter == null) return;
+        mushafAdapter.setInteractionListener(new MushafAdapter.OnAyahInteractionListener() {
+            @Override
+            public void onAyahTapped(int surah, int ayah) {
+                currentSurah = surah;
+                currentAyah = ayah;
+                updateHeader();
+            }
+
+            @Override
+            public void onAyahLongPressed(int surah, int ayah) {
+                showAyahActionsSheet(surah, ayah, MushafAdapter.surahToPosition(surah));
+            }
+        });
+    }
+
+    private void showAyahActionsSheet(int surah, int ayah, int position) {
+        repository.getExecutor().execute(() -> {
+            boolean isBookmarked = repository.isBookmarked(surah, ayah);
+            Ayah ayahData = repository.getAyah(surah, ayah);
+            String surahName = "";
+            if (!surahs.isEmpty() && surah <= surahs.size()) {
+                surahName = surahs.get(surah - 1).surahNameEn;
+            }
+
+            String finalSurahName = surahName;
+            if (getActivity() == null) return;
+
+            requireActivity().runOnUiThread(() -> {
+                AyahActionsBottomSheet sheet = new AyahActionsBottomSheet();
+                sheet.setData(surah, ayah, finalSurahName,
+                        ayahData != null ? ayahData.arabicText : "",
+                        isBookmarked, arabicFont);
+                sheet.setActionListener(new AyahActionsBottomSheet.ActionListener() {
+                    @Override
+                    public void onBookmarkToggle() {
+                        repository.getExecutor().execute(() -> {
+                            if (isBookmarked) {
+                                repository.removeBookmark(surah, ayah);
+                            } else {
+                                repository.addBookmark(new Bookmark(surah, ayah, finalSurahName, ""));
+                            }
+                            if (getActivity() != null) {
+                                requireActivity().runOnUiThread(() -> {
+                                    updateHeader();
+                                    String bmMsg = Localization.get(repository.getLanguage(),
+                                            isBookmarked ? Localization.BOOKMARK_REMOVED : Localization.BOOKMARK_ADDED);
+                                    Toast.makeText(requireContext(), bmMsg, Toast.LENGTH_SHORT).show();
+                                });
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onSetReadingPoint() {
+                        currentSurah = surah;
+                        currentAyah = ayah;
+                        repository.saveCurrentPosition(surah, ayah);
+                        updateHeader();
+                        String msg = Localization.get(repository.getLanguage(), Localization.READING_POINT_SET);
+                        Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onPlay() {
+                        currentSurah = surah;
+                        currentAyah = ayah;
+                        audioPlayer.playAyah(surah, ayah, repository.getRepeatMode());
+                        btnPlay.setImageResource(R.drawable.ic_pause);
+                        isPlaying = true;
+                        pagerAdapter.setPlayingPosition(position);
+                        continuousPlay = true;
+                    }
+
+                    @Override
+                    public void onShare() {
+                        shareAyahText(surah, ayah);
+                    }
+
+                    @Override
+                    public void onShareAsImage() {
+                        repository.getExecutor().execute(() -> {
+                            Ayah data = repository.getAyah(surah, ayah);
+                            if (data != null && getActivity() != null) {
+                                requireActivity().runOnUiThread(() ->
+                                        ShareCardGenerator.shareAyahAsImage(requireContext(), data,
+                                                data.defaultTranslation, arabicFont));
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onCopyArabic() {
+                        if (ayahData != null) {
+                            android.content.ClipboardManager clipboard = (android.content.ClipboardManager)
+                                    requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Ayah", ayahData.arabicText));
+                            Toast.makeText(requireContext(), Localization.get(repository.getLanguage(), Localization.COPIED), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onSelectText() {
+                        enableTextSelectionAt(position);
+                    }
+                });
+                sheet.show(getChildFragmentManager(), "ayah_actions");
+            });
+        });
+    }
+
+    private void enableTextSelectionAt(int position) {
+        if (recyclerView == null) return;
+        if ("arabic".equals(displayMode)) {
+            // Mushaf mode: enable selection on the continuous text
+            RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(
+                    MushafAdapter.surahToPosition(currentSurah));
+            if (vh != null) {
+                TextView tvMushaf = vh.itemView.findViewById(R.id.tv_mushaf_text);
+                if (tvMushaf != null) {
+                    tvMushaf.setTextIsSelectable(true);
+                    tvMushaf.requestFocus();
+                }
+            }
+        } else {
+            RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(position);
+            if (vh != null) {
+                TextView tvArabic = vh.itemView.findViewById(R.id.tv_arabic);
+                TextView tvTranslation = vh.itemView.findViewById(R.id.tv_translation);
+                TextView tvExtra = vh.itemView.findViewById(R.id.tv_extra_content);
+                if (tvArabic != null) tvArabic.setTextIsSelectable(true);
+                if (tvTranslation != null) tvTranslation.setTextIsSelectable(true);
+                if (tvExtra != null && tvExtra.getVisibility() == View.VISIBLE) tvExtra.setTextIsSelectable(true);
+            }
+        }
+        String msg = Localization.get(repository.getLanguage(), Localization.SELECT_TEXT);
+        Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
+    }
+
+    private void shareAyahText(int surah, int ayah) {
+        repository.getExecutor().execute(() -> {
+            Ayah ayahData = repository.getAyah(surah, ayah);
+            if (ayahData == null || getActivity() == null) return;
+
+            String text = ayahData.arabicText + "\n\n" + ayahData.defaultTranslation +
+                    "\n\n[" + ayahData.surahNameEn + " " + surah + ":" + ayah + "]";
 
             requireActivity().runOnUiThread(() -> {
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
@@ -458,32 +966,23 @@ public class ReadingFragment extends Fragment {
         });
     }
 
-    private void togglePlay() {
-        if (isPlaying) {
-            audioPlayer.stop();
-            btnPlay.setImageResource(R.drawable.ic_play);
-            isPlaying = false;
-        } else {
-            String url = String.format("https://everyayah.com/data/Alafasy_128kbps/%03d%03d.mp3",
-                currentSurah, currentAyah);
-            audioPlayer.playUrl(url, repository.getRepeatMode());
-            btnPlay.setImageResource(R.drawable.ic_pause);
-            isPlaying = true;
-        }
-    }
-
-    private void toggleRepeat() {
-        boolean repeat = !repository.getRepeatMode();
-        repository.setRepeatMode(repeat);
-        btnRepeat.setAlpha(repeat ? 1.0f : 0.5f);
+    @Override
+    public void onResume() {
+        super.onResume();
+        sessionStartTime = System.currentTimeMillis();
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        // Save scroll position
-        if (layoutManager != null) {
-            repository.saveCurrentPosition(currentSurah, currentAyah);
+
+        if (sessionStartTime > 0) {
+            int durationSeconds = (int) ((System.currentTimeMillis() - sessionStartTime) / 1000);
+            if (durationSeconds > 5) {
+                repository.getExecutor().execute(() ->
+                        repository.recordReadingSession(currentSurah, currentAyah, durationSeconds, "read"));
+            }
+            sessionStartTime = 0;
         }
     }
 
@@ -494,18 +993,53 @@ public class ReadingFragment extends Fragment {
         View container = getView().findViewById(R.id.reading_container);
         container.setBackgroundColor(theme.getBackgroundColor());
 
+        // Header bar with rounded bottom corners
         View headerBar = getView().findViewById(R.id.header_bar);
-        headerBar.setBackgroundColor(theme.getSurfaceColor());
+        GradientDrawable headerBg = new GradientDrawable();
+        headerBg.setColor(theme.getSurfaceColor());
+        headerBg.setCornerRadii(new float[]{0, 0, 0, 0, 48, 48, 48, 48}); // bottom corners
+        headerBar.setBackground(headerBg);
 
         tvSurahName.setTextColor(theme.getAccentColor());
         tvAyahCounter.setTextColor(theme.getPrimaryTextColor());
-        tvJuzBadge.setTextColor(theme.getSecondaryTextColor());
 
-        // Update mode pill colors
-        btnModeReading.setTextColor(isLearningMode ?
-            theme.getSecondaryTextColor() : theme.getPrimaryTextColor());
-        btnModeLearning.setTextColor(isLearningMode ?
-            theme.getPrimaryTextColor() : theme.getSecondaryTextColor());
+        // Juz badge with themed background
+        GradientDrawable juzBg = new GradientDrawable();
+        juzBg.setColor(theme.getBadgeColor());
+        juzBg.setCornerRadius(36);
+        tvJuzBadge.setBackground(juzBg);
+        tvJuzBadge.setTextColor(theme.isDarkTheme() ? 0xFFFFFFFF : 0xFFFFFFFF);
+
+        // Mode pill container
+        View modePillContainer = getView().findViewById(R.id.mode_toggle_container);
+        GradientDrawable modePillBg = new GradientDrawable();
+        modePillBg.setColor(theme.getModePillColor());
+        modePillBg.setCornerRadius(60);
+        modePillContainer.setBackground(modePillBg);
+
+        updateModeButtons();
+
+        // Floating toolbar with themed background
+        GradientDrawable toolbarBg = new GradientDrawable();
+        toolbarBg.setColor(theme.getToolbarColor());
+        toolbarBg.setCornerRadius(84);
+        floatingToolbar.setBackground(toolbarBg);
+
+        // Toolbar dividers
+        View v = getView();
+        for (int i = 0; i < ((ViewGroup) floatingToolbar).getChildCount(); i++) {
+            View child = ((ViewGroup) floatingToolbar).getChildAt(i);
+            if (child instanceof ViewGroup) {
+                ViewGroup row = (ViewGroup) child;
+                for (int j = 0; j < row.getChildCount(); j++) {
+                    View item = row.getChildAt(j);
+                    if (item.getId() == View.NO_ID && item.getLayoutParams().width == 1) {
+                        // This is a divider
+                        item.setBackgroundColor(theme.getDividerColor());
+                    }
+                }
+            }
+        }
 
         // Toolbar icon tints
         int iconColor = theme.getPrimaryTextColor();
@@ -517,9 +1051,21 @@ public class ReadingFragment extends Fragment {
         btnRandom.setColorFilter(iconColor);
         btnBookmark.setColorFilter(theme.getAccentColor());
 
-        // Refresh adapter
+        // Reading point & Learn button tints
+        ImageButton btnRP = getView().findViewById(R.id.fab_reading_point);
+        ImageButton btnLrn = getView().findViewById(R.id.fab_learn);
+        if (btnRP != null) btnRP.setColorFilter(theme.getAccentColor());
+        if (btnLrn != null) btnLrn.setColorFilter(theme.getAccentColor());
+
+        if (btnSpeed != null) btnSpeed.setTextColor(theme.getAccentColor());
+        if (tvReciterName != null) tvReciterName.setTextColor(theme.getSecondaryTextColor());
+
+        // Refresh adapters
         if (pagerAdapter != null) {
             pagerAdapter.notifyDataSetChanged();
+        }
+        if (mushafAdapter != null) {
+            mushafAdapter.notifyDataSetChanged();
         }
     }
 }
