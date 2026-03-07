@@ -156,12 +156,8 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
                     public void onClick(@NonNull View widget) {
                         highlightedSurah = surahNum;
                         highlightedAyah = ayahNum;
-                        // Force TextView to re-evaluate spans by resetting text
-                        if (widget instanceof TextView) {
-                            TextView tv = (TextView) widget;
-                            tv.setText(tv.getText());
-                            tv.setMovementMethod(LinkMovementMethod.getInstance());
-                        }
+                        // Just invalidate to repaint spans — no setText/re-layout
+                        widget.invalidate();
                         if (interactionListener != null) {
                             interactionListener.onAyahTapped(surahNum, ayahNum);
                         }

@@ -27,7 +27,8 @@
             android:name=".MainActivity"
             android:exported="false"
             android:theme="@style/Theme.AlQuran.NoActionBar"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout" />
 
         <service
             android:name=".audio.AudioPlaybackService"

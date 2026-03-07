@@ -13,6 +13,7 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsetsController;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
@@ -21,8 +22,12 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -90,6 +95,11 @@ public class ReadingFragment extends Fragment {
     private long sessionStartTime = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
+    // Fullscreen state
+    private boolean isFullscreen = false;
+    private ImageButton btnFullscreen, btnExitFullscreen;
+    private OnBackPressedCallback fullscreenBackCallback;
+
     // Playback speeds
     private final float[] SPEEDS = {0.75f, 1.0f, 1.25f, 1.5f, 2.0f};
     private int currentSpeedIndex = 1;
@@ -151,6 +161,15 @@ public class ReadingFragment extends Fragment {
         setupAudioCallback();
         updateModeButtons();
         updateSourceSpinner();
+
+        // Back press handler for fullscreen exit
+        fullscreenBackCallback = new OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                exitFullscreen();
+            }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), fullscreenBackCallback);
     }
 
     private void initViews(View view) {
@@ -216,6 +235,7 @@ public class ReadingFragment extends Fragment {
         btnPrevious.setOnClickListener(v -> navigatePrev());
         btnNext.setOnClickListener(v -> navigateNext());
         btnPlay.setOnClickListener(v -> togglePlay());
+        btnPlay.setOnLongClickListener(v -> { showReciterSelector(); return true; });
         btnRepeat.setOnClickListener(v -> toggleRepeat());
         btnShare.setOnClickListener(v -> shareAyah());
         btnRandom.setOnClickListener(v -> loadRandom());
@@ -223,8 +243,7 @@ public class ReadingFragment extends Fragment {
         // Speed button
         btnSpeed.setOnClickListener(v -> cycleSpeed());
 
-        // Reciter name tap
-        tvReciterName.setOnClickListener(v -> showReciterSelector());
+        // Reciter selector via long-press on play button (reciter name hidden)
 
         btnRepeat.setAlpha(repository.getRepeatMode() ? 1.0f : 0.5f);
 
@@ -254,6 +273,17 @@ public class ReadingFragment extends Fragment {
             LearnFragment learnDialog = new LearnFragment();
             learnDialog.show(getChildFragmentManager(), "learn_mode");
         });
+
+        // Fullscreen button
+        btnFullscreen = view.findViewById(R.id.btn_fullscreen);
+        btnFullscreen.setOnClickListener(v -> {
+            if (isFullscreen) exitFullscreen();
+            else enterFullscreen();
+        });
+
+        // Floating exit fullscreen button (visible only in fullscreen mode)
+        btnExitFullscreen = view.findViewById(R.id.btn_exit_fullscreen);
+        btnExitFullscreen.setOnClickListener(v -> exitFullscreen());
     }
 
     private void switchDisplayMode(String mode) {
@@ -923,30 +953,56 @@ public class ReadingFragment extends Fragment {
 
     private void enableTextSelectionAt(int position) {
         if (recyclerView == null) return;
-        if ("arabic".equals(displayMode)) {
-            // Mushaf mode: enable selection on the continuous text
-            RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(
-                    MushafAdapter.surahToPosition(currentSurah));
-            if (vh != null) {
-                TextView tvMushaf = vh.itemView.findViewById(R.id.tv_mushaf_text);
-                if (tvMushaf != null) {
-                    tvMushaf.setTextIsSelectable(true);
-                    tvMushaf.requestFocus();
+        // Delay to let bottom sheet dismiss before enabling selection
+        recyclerView.postDelayed(() -> {
+            if ("arabic".equals(displayMode)) {
+                RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(
+                        MushafAdapter.surahToPosition(currentSurah));
+                if (vh != null) {
+                    TextView tvMushaf = vh.itemView.findViewById(R.id.tv_mushaf_text);
+                    if (tvMushaf != null) {
+                        // Remove ClickableSpans that conflict with text selection
+                        CharSequence text = tvMushaf.getText();
+                        if (text instanceof android.text.Spannable) {
+                            android.text.Spannable spannable = (android.text.Spannable) text;
+                            android.text.style.ClickableSpan[] clicks = spannable.getSpans(
+                                    0, spannable.length(), android.text.style.ClickableSpan.class);
+                            for (android.text.style.ClickableSpan cs : clicks) {
+                                spannable.removeSpan(cs);
+                            }
+                        }
+                        // Remove long-click & movement method that block selection
+                        tvMushaf.setOnLongClickListener(null);
+                        tvMushaf.setMovementMethod(null);
+                        tvMushaf.setTextIsSelectable(true);
+                        tvMushaf.setHighlightColor(0x440088FF); // restore selection highlight
+                        tvMushaf.requestFocus();
+                        // Trigger native selection on next frame after view is ready
+                        tvMushaf.post(() -> tvMushaf.performLongClick());
+                    }
+                }
+            } else {
+                RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(position);
+                if (vh != null) {
+                    TextView tvArabic = vh.itemView.findViewById(R.id.tv_arabic);
+                    TextView tvTranslation = vh.itemView.findViewById(R.id.tv_translation);
+                    TextView tvExtra = vh.itemView.findViewById(R.id.tv_extra_content);
+                    if (tvArabic != null) {
+                        tvArabic.setTextIsSelectable(true);
+                        tvArabic.requestFocus();
+                        selectAllText(tvArabic);
+                    }
+                    if (tvTranslation != null) tvTranslation.setTextIsSelectable(true);
+                    if (tvExtra != null && tvExtra.getVisibility() == View.VISIBLE) tvExtra.setTextIsSelectable(true);
                 }
             }
-        } else {
-            RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(position);
-            if (vh != null) {
-                TextView tvArabic = vh.itemView.findViewById(R.id.tv_arabic);
-                TextView tvTranslation = vh.itemView.findViewById(R.id.tv_translation);
-                TextView tvExtra = vh.itemView.findViewById(R.id.tv_extra_content);
-                if (tvArabic != null) tvArabic.setTextIsSelectable(true);
-                if (tvTranslation != null) tvTranslation.setTextIsSelectable(true);
-                if (tvExtra != null && tvExtra.getVisibility() == View.VISIBLE) tvExtra.setTextIsSelectable(true);
-            }
+        }, 350);
+    }
+
+    private void selectAllText(TextView tv) {
+        if (tv.getText() instanceof android.text.Spannable) {
+            android.text.Selection.selectAll((android.text.Spannable) tv.getText());
         }
-        String msg = Localization.get(repository.getLanguage(), Localization.SELECT_TEXT);
-        Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
     }
 
     private void shareAyahText(int surah, int ayah) {
@@ -975,6 +1031,7 @@ public class ReadingFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
+        if (isFullscreen) exitFullscreen();
 
         if (sessionStartTime > 0) {
             int durationSeconds = (int) ((System.currentTimeMillis() - sessionStartTime) / 1000);
@@ -984,6 +1041,77 @@ public class ReadingFragment extends Fragment {
             }
             sessionStartTime = 0;
         }
+    }
+
+    // ──────── Fullscreen mode ────────
+
+    private void enterFullscreen() {
+        if (isFullscreen || getActivity() == null) return;
+        isFullscreen = true;
+
+        // Hide UI chrome — keep current display mode as-is
+        View headerBar = getView().findViewById(R.id.header_bar);
+        headerBar.setVisibility(View.GONE);
+        spinnerSource.setVisibility(View.GONE);
+        floatingToolbar.setVisibility(View.GONE);
+
+        // Hide bottom navigation
+        if (getActivity() instanceof MainActivity) {
+            View bottomNav = getActivity().findViewById(R.id.bottom_navigation);
+            if (bottomNav != null) bottomNav.setVisibility(View.GONE);
+        }
+
+        // Immersive fullscreen — hide status & navigation bars
+        WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(
+                requireActivity().getWindow(), requireActivity().getWindow().getDecorView());
+        insetsController.hide(WindowInsetsCompat.Type.systemBars());
+        insetsController.setSystemBarsBehavior(
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+
+        // Show floating exit button, hide toolbar fullscreen button
+        btnExitFullscreen.setVisibility(View.VISIBLE);
+
+        // Enable back press callback
+        fullscreenBackCallback.setEnabled(true);
+    }
+
+    private void exitFullscreen() {
+        if (!isFullscreen || getActivity() == null) return;
+        isFullscreen = false;
+
+        // Show UI chrome
+        View headerBar = getView().findViewById(R.id.header_bar);
+        headerBar.setVisibility(View.VISIBLE);
+        floatingToolbar.setVisibility(View.VISIBLE);
+
+        // Show bottom navigation
+        if (getActivity() instanceof MainActivity) {
+            View bottomNav = getActivity().findViewById(R.id.bottom_navigation);
+            if (bottomNav != null) bottomNav.setVisibility(View.VISIBLE);
+        }
+
+        // Restore system bars
+        WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(
+                requireActivity().getWindow(), requireActivity().getWindow().getDecorView());
+        insetsController.show(WindowInsetsCompat.Type.systemBars());
+
+        // Restore source spinner if needed
+        updateSourceSpinner();
+
+        // Re-apply theme (restores status bar colors)
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).refreshTheme();
+        }
+
+        // Hide floating exit button
+        btnExitFullscreen.setVisibility(View.GONE);
+
+        // Disable back press callback
+        fullscreenBackCallback.setEnabled(false);
+    }
+
+    public boolean isFullscreen() {
+        return isFullscreen;
     }
 
     public void applyTheme() {
@@ -1056,6 +1184,7 @@ public class ReadingFragment extends Fragment {
         ImageButton btnLrn = getView().findViewById(R.id.fab_learn);
         if (btnRP != null) btnRP.setColorFilter(theme.getAccentColor());
         if (btnLrn != null) btnLrn.setColorFilter(theme.getAccentColor());
+        if (btnFullscreen != null) btnFullscreen.setColorFilter(theme.getAccentColor());
 
         if (btnSpeed != null) btnSpeed.setTextColor(theme.getAccentColor());
         if (tvReciterName != null) tvReciterName.setTextColor(theme.getSecondaryTextColor());

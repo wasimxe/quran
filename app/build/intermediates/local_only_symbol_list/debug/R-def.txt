@@ -64,6 +64,8 @@ drawable ic_bookmark_filled
 drawable ic_check_circle
 drawable ic_delete
 drawable ic_download
+drawable ic_fullscreen
+drawable ic_fullscreen_exit
 drawable ic_launcher_foreground
 drawable ic_learn
 drawable ic_library
@@ -105,6 +107,8 @@ id btn_continue
 id btn_delete_bookmark
 id btn_dont_know
 id btn_download_action
+id btn_exit_fullscreen
+id btn_fullscreen
 id btn_know
 id btn_mode_arabic
 id btn_mode_tafseer

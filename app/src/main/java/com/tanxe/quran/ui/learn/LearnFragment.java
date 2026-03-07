@@ -32,6 +32,9 @@ import com.tanxe.quran.data.repository.QuranRepository;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.ui.adapter.WordFrequencyAdapter;
 import com.tanxe.quran.util.ArabicUtils;
+import com.tanxe.quran.util.Localization;
+
+import com.google.android.material.chip.Chip;
 
 import android.util.Log;
 import android.view.GestureDetector;
@@ -60,6 +63,7 @@ public class LearnFragment extends DialogFragment {
     private MaterialButton btnPrevWord, btnNextWord, btnSearchWord;
     private TextView tvWordIndex;
     private RecyclerView rvWordList;
+    private Chip chipAll, chipUnknown, chipKnown;
 
     private Typeface arabicFont;
     private List<WordByWordDao.WordWithTranslation> allWords = new ArrayList<>();
@@ -177,6 +181,9 @@ public class LearnFragment extends DialogFragment {
         btnReset.setOnClickListener(v -> confirmReset());
 
         // Filter chips
+        chipAll = view.findViewById(R.id.chip_all);
+        chipUnknown = view.findViewById(R.id.chip_unknown);
+        chipKnown = view.findViewById(R.id.chip_known);
         ChipGroup filterChips = view.findViewById(R.id.filter_chips);
         filterChips.setOnCheckedStateChangeListener((group, checkedIds) -> {
             if (checkedIds.isEmpty()) return;
@@ -221,8 +228,9 @@ public class LearnFragment extends DialogFragment {
             if (getActivity() != null) {
                 requireActivity().runOnUiThread(() -> {
                     // Build scope spinner items
+                    String lang = repository.getLanguage();
                     List<String> scopeItems = new ArrayList<>();
-                    scopeItems.add("Full Quran");
+                    scopeItems.add(Localization.get(lang, Localization.FULL_QURAN));
                     for (AyahDao.SurahInfo s : surahList) {
                         scopeItems.add(s.surahNumber + ". " + s.surahNameEn);
                     }
@@ -260,8 +268,9 @@ public class LearnFragment extends DialogFragment {
                 requireActivity().runOnUiThread(() -> {
                     Log.d("LearnFragment", "UI thread: setting up adapter, words=" + allWords.size());
                     if (allWords.isEmpty()) {
-                        tvLearnArabic.setText("No word data");
-                        tvLearnFreq.setText("Download Word by Word data first");
+                        String uiLang = repository.getLanguage();
+                        tvLearnArabic.setText(Localization.get(uiLang, Localization.NO_WORD_DATA));
+                        tvLearnFreq.setText(Localization.get(uiLang, Localization.DOWNLOAD_WBW_FIRST));
                         tvLearnFreq.setVisibility(View.VISIBLE);
                         tvLearnTranslation.setVisibility(View.GONE);
                         return;
@@ -360,7 +369,8 @@ public class LearnFragment extends DialogFragment {
 
                     // Show/hide similar words button
                     if (currentSimilarWords != null && !currentSimilarWords.isEmpty()) {
-                        btnReveal.setText("Similar (" + currentSimilarWords.size() + ")");
+                        String uiLang = repository.getLanguage();
+                        btnReveal.setText(Localization.get(uiLang, Localization.SIMILAR) + " (" + currentSimilarWords.size() + ")");
                         btnReveal.setVisibility(View.VISIBLE);
                     } else {
                         btnReveal.setVisibility(View.GONE);
@@ -375,7 +385,8 @@ public class LearnFragment extends DialogFragment {
 
         WordByWordDao.WordWithTranslation current = wordListAdapter != null ?
                 wordListAdapter.getWordAt(currentWordIndex) : null;
-        String title = current != null ? "Similar to: " + current.arabicWord : "Similar Words";
+        String lang = repository.getLanguage();
+        String title = current != null ? Localization.get(lang, Localization.SIMILAR_TO) + current.arabicWord : Localization.get(lang, Localization.SIMILAR);
 
         // Build list items: "arabicWord  =  translation  (×frequency)"
         String[] items = new String[currentSimilarWords.size()];
@@ -388,7 +399,7 @@ public class LearnFragment extends DialogFragment {
         new AlertDialog.Builder(requireContext())
                 .setTitle(title)
                 .setItems(items, null)
-                .setPositiveButton("Close", null)
+                .setPositiveButton(Localization.get(lang, Localization.CLOSE), null)
                 .show();
     }
 
@@ -497,11 +508,12 @@ public class LearnFragment extends DialogFragment {
     }
 
     private void confirmReset() {
+        String lang = repository.getLanguage();
         new AlertDialog.Builder(requireContext())
-                .setTitle("Reset Learning Progress")
-                .setMessage("This will mark all words as unknown. Are you sure?")
-                .setPositiveButton("Reset", (d, w) -> resetProgress())
-                .setNegativeButton("Cancel", null)
+                .setTitle(Localization.get(lang, Localization.RESET_PROGRESS))
+                .setMessage(Localization.get(lang, Localization.RESET_CONFIRM))
+                .setPositiveButton(Localization.get(lang, Localization.RESET), (d, w) -> resetProgress())
+                .setNegativeButton(Localization.get(lang, Localization.CANCEL), null)
                 .show();
     }
 
@@ -529,7 +541,8 @@ public class LearnFragment extends DialogFragment {
         int percent = totalFreq > 0 ? (int) ((knownFreq * 100.0) / totalFreq) : 0;
 
         progressLearn.setProgress(percent);
-        tvProgressText.setText(percent + "% | " + knownCount + "/" + totalCount + " words");
+        String lang = repository.getLanguage();
+        tvProgressText.setText(percent + "% | " + knownCount + "/" + totalCount + " " + Localization.get(lang, Localization.WORDS));
     }
 
     private void searchCurrentWordInQuran() {
@@ -554,5 +567,20 @@ public class LearnFragment extends DialogFragment {
         tvLearnTranslation.setTextColor(theme.getTranslationTextColor());
         if (tvLearnFreq != null) tvLearnFreq.setTextColor(theme.getAccentColor());
         if (cardFlashcard != null) cardFlashcard.setCardBackgroundColor(theme.getCardColor());
+        localizeLabels();
+    }
+
+    private void localizeLabels() {
+        String lang = repository.getLanguage();
+        tvLearnTitle.setText(Localization.get(lang, Localization.LEARN_MODE));
+        btnReset.setText(Localization.get(lang, Localization.RESET));
+        btnDontKnow.setText("\u2717 " + Localization.get(lang, Localization.DONT_KNOW));
+        btnKnow.setText("\u2713 " + Localization.get(lang, Localization.KNOW));
+        btnPrevWord.setText("\u25C4 " + Localization.get(lang, Localization.PREV));
+        btnNextWord.setText(Localization.get(lang, Localization.NEXT) + " \u25BA");
+        btnSearchWord.setText(Localization.get(lang, Localization.SEARCH));
+        if (chipAll != null) chipAll.setText(Localization.get(lang, Localization.ALL_WORDS));
+        if (chipUnknown != null) chipUnknown.setText(Localization.get(lang, Localization.UNKNOWN_WORD));
+        if (chipKnown != null) chipKnown.setText(Localization.get(lang, Localization.KNOWN_WORD));
     }
 }

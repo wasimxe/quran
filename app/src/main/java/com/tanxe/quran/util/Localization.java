@@ -71,8 +71,26 @@ public class Localization {
     public static final int BOOKMARK_ADDED = 61;
     public static final int BOOKMARK_REMOVED = 62;
     public static final int SELECT_TEXT = 63;
+    public static final int LEARN_MODE = 64;
+    public static final int RESET = 65;
+    public static final int DONT_KNOW = 66;
+    public static final int KNOW = 67;
+    public static final int SIMILAR = 68;
+    public static final int PREV = 69;
+    public static final int NEXT = 70;
+    public static final int ALL_WORDS = 71;
+    public static final int UNKNOWN_WORD = 72;
+    public static final int KNOWN_WORD = 73;
+    public static final int FULL_QURAN = 74;
+    public static final int NO_WORD_DATA = 75;
+    public static final int DOWNLOAD_WBW_FIRST = 76;
+    public static final int SIMILAR_TO = 77;
+    public static final int RESET_PROGRESS = 78;
+    public static final int RESET_CONFIRM = 79;
+    public static final int CANCEL = 80;
+    public static final int WORDS = 81;
 
-    private static final int LABEL_COUNT = 64;
+    private static final int LABEL_COUNT = 82;
 
     public static String get(String lang, int key) {
         return getLabels(lang)[key];
@@ -147,6 +165,24 @@ public class Localization {
                     "\u0628\u06A9 \u0645\u0627\u0631\u06A9 \u0634\u0627\u0645\u0644 \u06C1\u0648 \u06AF\u06CC\u0627", // بک مارک شامل ہو گیا
                     "\u0628\u06A9 \u0645\u0627\u0631\u06A9 \u06C1\u0679\u0627 \u062F\u06CC\u0627 \u06AF\u06CC\u0627", // بک مارک ہٹا دیا گیا
                     "\u0645\u062A\u0646 \u0645\u0646\u062A\u062E\u0628 \u06A9\u0631\u06CC\u06BA", // متن منتخب کریں
+                    "\u0633\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u0627 \u0645\u0648\u0688", // سیکھنے کا موڈ
+                    "\u0631\u06CC \u0633\u06CC\u0679", // ری سیٹ
+                    "\u0646\u06C1\u06CC\u06BA \u0622\u062A\u0627", // نہیں آتا
+                    "\u0622\u062A\u0627 \u06C1\u06D2", // آتا ہے
+                    "\u0645\u0644\u062A\u06D2 \u062C\u0644\u062A\u06D2", // ملتے جلتے
+                    "\u067E\u0686\u06BE\u0644\u0627", // پچھلا
+                    "\u0627\u06AF\u0644\u0627", // اگلا
+                    "\u062A\u0645\u0627\u0645 \u0627\u0644\u0641\u0627\u0638", // تمام الفاظ
+                    "\u0646\u0627\u0645\u0639\u0644\u0648\u0645", // نامعلوم
+                    "\u0645\u0639\u0644\u0648\u0645", // معلوم
+                    "\u0645\u06A9\u0645\u0644 \u0642\u0631\u0622\u0646", // مکمل قرآن
+                    "\u06A9\u0648\u0626\u06CC \u0644\u0641\u0638 \u0688\u06CC\u0679\u0627 \u0646\u06C1\u06CC\u06BA", // کوئی لفظ ڈیٹا نہیں
+                    "\u067E\u06C1\u0644\u06D2 \u0644\u0641\u0638 \u0628\u0644\u0641\u0638 \u0688\u06CC\u0679\u0627 \u0688\u0627\u0624\u0646 \u0644\u0648\u0688 \u06A9\u0631\u06CC\u06BA", // پہلے لفظ بلفظ ڈیٹا ڈاؤن لوڈ کریں
+                    "\u0645\u0644\u062A\u06D2 \u062C\u0644\u062A\u06D2", // ملتے جلتے
+                    "\u0633\u06CC\u06A9\u06BE\u0646\u06D2 \u06A9\u06CC \u067E\u06CC\u0634\u0631\u0641\u062A \u0631\u06CC \u0633\u06CC\u0679 \u06A9\u0631\u06CC\u06BA", // سیکھنے کی پیشرفت ری سیٹ کریں
+                    "\u062A\u0645\u0627\u0645 \u0627\u0644\u0641\u0627\u0638 \u0646\u0627\u0645\u0639\u0644\u0648\u0645 \u06C1\u0648 \u062C\u0627\u0626\u06CC\u06BA \u06AF\u06D2\u06D4 \u06A9\u06CC\u0627 \u0622\u067E \u06A9\u0648 \u06CC\u0642\u06CC\u0646 \u06C1\u06D2\u061F", // تمام الفاظ نامعلوم ہو جائیں گے۔ کیا آپ کو یقین ہے؟
+                    "\u0645\u0646\u0633\u0648\u062E", // منسوخ
+                    "\u0627\u0644\u0641\u0627\u0638", // الفاظ
                 };
             case "ar":
                 return new String[]{
@@ -214,6 +250,24 @@ public class Localization {
                     "\u062A\u0645\u062A \u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0639\u0644\u0627\u0645\u0629", // تمت إضافة العلامة
                     "\u062A\u0645\u062A \u0625\u0632\u0627\u0644\u0629 \u0627\u0644\u0639\u0644\u0627\u0645\u0629", // تمت إزالة العلامة
                     "\u062A\u062D\u062F\u064A\u062F \u0627\u0644\u0646\u0635", // تحديد النص
+                    "\u0648\u0636\u0639 \u0627\u0644\u062A\u0639\u0644\u0645", // وضع التعلم
+                    "\u0625\u0639\u0627\u062F\u0629 \u062A\u0639\u064A\u064A\u0646", // إعادة تعيين
+                    "\u0644\u0627 \u0623\u0639\u0631\u0641", // لا أعرف
+                    "\u0623\u0639\u0631\u0641", // أعرف
+                    "\u0645\u0634\u0627\u0628\u0647", // مشابه
+                    "\u0627\u0644\u0633\u0627\u0628\u0642", // السابق
+                    "\u0627\u0644\u062A\u0627\u0644\u064A", // التالي
+                    "\u0643\u0644 \u0627\u0644\u0643\u0644\u0645\u0627\u062A", // كل الكلمات
+                    "\u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641", // غير معروف
+                    "\u0645\u0639\u0631\u0648\u0641", // معروف
+                    "\u0627\u0644\u0642\u0631\u0622\u0646 \u0643\u0627\u0645\u0644\u0627\u064B", // القرآن كاملاً
+                    "\u0644\u0627 \u062A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A \u0643\u0644\u0645\u0627\u062A", // لا توجد بيانات كلمات
+                    "\u062D\u0645\u0651\u0644 \u0628\u064A\u0627\u0646\u0627\u062A \u0643\u0644\u0645\u0629 \u0628\u0643\u0644\u0645\u0629 \u0623\u0648\u0644\u0627\u064B", // حمّل بيانات كلمة بكلمة أولاً
+                    "\u0645\u0634\u0627\u0628\u0647 \u0644\u0640", // مشابه لـ
+                    "\u0625\u0639\u0627\u062F\u0629 \u062A\u0639\u064A\u064A\u0646 \u062A\u0642\u062F\u0645 \u0627\u0644\u062A\u0639\u0644\u0645", // إعادة تعيين تقدم التعلم
+                    "\u0633\u064A\u062A\u0645 \u062A\u062D\u062F\u064A\u062F \u062C\u0645\u064A\u0639 \u0627\u0644\u0643\u0644\u0645\u0627\u062A \u0643\u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641\u0629. \u0647\u0644 \u0623\u0646\u062A \u0645\u062A\u0623\u0643\u062F\u061F", // سيتم تحديد جميع الكلمات كغير معروفة. هل أنت متأكد؟
+                    "\u0625\u0644\u063A\u0627\u0621", // إلغاء
+                    "\u0643\u0644\u0645\u0627\u062A", // كلمات
                 };
             case "hi":
                 return new String[]{
@@ -276,6 +330,24 @@ public class Localization {
                     "\u092C\u0941\u0915\u092E\u093E\u0930\u094D\u0915 \u091C\u094B\u0921\u093C\u093E \u0917\u092F\u093E", // बुकमार्क जोड़ा गया
                     "\u092C\u0941\u0915\u092E\u093E\u0930\u094D\u0915 \u0939\u091F\u093E\u092F\u093E \u0917\u092F\u093E", // बुकमार्क हटाया गया
                     "\u091F\u0947\u0915\u094D\u0938\u094D\u091F \u091A\u0941\u0928\u0947\u0902", // टेक्स्ट चुनें
+                    "\u0938\u0940\u0916\u0928\u0947 \u0915\u093E \u092E\u094B\u0921", // सीखने का मोड
+                    "\u0930\u0940\u0938\u0947\u091F", // रीसेट
+                    "\u0928\u0939\u0940\u0902 \u092A\u0924\u093E", // नहीं पता
+                    "\u092A\u0924\u093E \u0939\u0948", // पता है
+                    "\u0938\u092E\u093E\u0928", // समान
+                    "\u092A\u093F\u091B\u0932\u093E", // पिछला
+                    "\u0905\u0917\u0932\u093E", // अगला
+                    "\u0938\u092D\u0940 \u0936\u092C\u094D\u0926", // सभी शब्द
+                    "\u0905\u091C\u094D\u091E\u093E\u0924", // अज्ञात
+                    "\u091C\u094D\u091E\u093E\u0924", // ज्ञात
+                    "\u092A\u0942\u0930\u093E \u0915\u0941\u0930\u0906\u0928", // पूरा कुरआन
+                    "\u0915\u094B\u0908 \u0936\u092C\u094D\u0926 \u0921\u0947\u091F\u093E \u0928\u0939\u0940\u0902", // कोई शब्द डेटा नहीं
+                    "\u092A\u0939\u0932\u0947 \u0936\u092C\u094D\u0926 \u0926\u0930 \u0936\u092C\u094D\u0926 \u0921\u0947\u091F\u093E \u0921\u093E\u0909\u0928\u0932\u094B\u0921 \u0915\u0930\u0947\u0902", // पहले शब्द दर शब्द डेटा डाउनलोड करें
+                    "\u0907\u0938\u0938\u0947 \u092E\u093F\u0932\u0924\u0947 \u091C\u0941\u0932\u0924\u0947", // इससे मिलते जुलते
+                    "\u0938\u0940\u0916\u0928\u0947 \u0915\u0940 \u092A\u094D\u0930\u0917\u0924\u093F \u0930\u0940\u0938\u0947\u091F \u0915\u0930\u0947\u0902", // सीखने की प्रगति रीसेट करें
+                    "\u0938\u092D\u0940 \u0936\u092C\u094D\u0926 \u0905\u091C\u094D\u091E\u093E\u0924 \u0939\u094B \u091C\u093E\u090F\u0901\u0917\u0947\u0964 \u0915\u094D\u092F\u093E \u0906\u092A \u0928\u093F\u0936\u094D\u091A\u093F\u0924 \u0939\u0948\u0902?", // सभी शब्द अज्ञात हो जाएँगे। क्या आप निश्चित हैं?
+                    "\u0930\u0926\u094D\u0926 \u0915\u0930\u0947\u0902", // रद्द करें
+                    "\u0936\u092C\u094D\u0926", // शब्द
                 };
             case "tr":
                 return new String[]{
@@ -298,6 +370,14 @@ public class Localization {
                     "Sure Se\u00E7", "C\u00FCz Se\u00E7", "Okuyucu Se\u00E7", "Ayete Git",
                     "Ayet", "Yerle\u015Fik", "Yer imi eklendi", "Yer imi kald\u0131r\u0131ld\u0131",
                     "Metin Se\u00E7",
+                    "\u00D6\u011Frenme Modu", "S\u0131f\u0131rla",
+                    "Bilmiyorum", "Biliyorum", "Benzer",
+                    "\u00D6nceki", "Sonraki", "T\u00FCm Kelimeler",
+                    "Bilinmeyen", "Bilinen", "T\u00FCm Kur'an",
+                    "Kelime verisi yok", "\u00D6nce kelime kelime verisini indirin",
+                    "Benzer: ", "\u00D6\u011Frenme \u0130lerlemesini S\u0131f\u0131rla",
+                    "T\u00FCm kelimeler bilinmeyen olarak i\u015Faretlenecek. Emin misiniz?",
+                    "\u0130ptal", "kelime",
                 };
             case "bn":
                 return new String[]{
@@ -360,6 +440,24 @@ public class Localization {
                     "\u09AC\u09C1\u0995\u09AE\u09BE\u09B0\u09CD\u0995 \u09AF\u09CB\u0997 \u09B9\u09AF\u09BC\u09C7\u099B\u09C7", // বুকমার্ক যোগ হয়েছে
                     "\u09AC\u09C1\u0995\u09AE\u09BE\u09B0\u09CD\u0995 \u09B8\u09B0\u09BE\u09A8\u09CB \u09B9\u09AF\u09BC\u09C7\u099B\u09C7", // বুকমার্ক সরানো হয়েছে
                     "\u099F\u09C7\u0995\u09CD\u09B8\u099F \u09A8\u09BF\u09B0\u09CD\u09AC\u09BE\u099A\u09A8 \u0995\u09B0\u09C1\u09A8", // টেক্সট নির্বাচন করুন
+                    "\u09B6\u09C7\u0996\u09BE\u09B0 \u09AE\u09CB\u09A1", // শেখার মোড
+                    "\u09B0\u09BF\u09B8\u09C7\u099F", // রিসেট
+                    "\u099C\u09BE\u09A8\u09BF \u09A8\u09BE", // জানি না
+                    "\u099C\u09BE\u09A8\u09BF", // জানি
+                    "\u09B8\u09AE\u09BE\u09A8", // সমান
+                    "\u0986\u0997\u09C7\u09B0", // আগের
+                    "\u09AA\u09B0\u09C7\u09B0", // পরের
+                    "\u09B8\u09AC \u09B6\u09AC\u09CD\u09A6", // সব শব্দ
+                    "\u0985\u099C\u09BE\u09A8\u09BE", // অজানা
+                    "\u099C\u09BE\u09A8\u09BE", // জানা
+                    "\u09B8\u09AE\u09CD\u09AA\u09C2\u09B0\u09CD\u09A3 \u0995\u09C1\u09B0\u0986\u09A8", // সম্পূর্ণ কুরআন
+                    "\u0995\u09CB\u09A8\u09CB \u09B6\u09AC\u09CD\u09A6 \u09A1\u09C7\u099F\u09BE \u09A8\u09C7\u0987", // কোনো শব্দ ডেটা নেই
+                    "\u0986\u0997\u09C7 \u09B6\u09AC\u09CD\u09A6 \u09AA\u09CD\u09B0\u09A4\u09BF \u09B6\u09AC\u09CD\u09A6 \u09A1\u09C7\u099F\u09BE \u09A1\u09BE\u0989\u09A8\u09B2\u09CB\u09A1 \u0995\u09B0\u09C1\u09A8", // আগে শব্দ প্রতি শব্দ ডেটা ডাউনলোড করুন
+                    "\u098F\u09B0 \u09B8\u09AE\u09BE\u09A8", // এর সমান
+                    "\u09B6\u09C7\u0996\u09BE\u09B0 \u0985\u0997\u09CD\u09B0\u0997\u09A4\u09BF \u09B0\u09BF\u09B8\u09C7\u099F \u0995\u09B0\u09C1\u09A8", // শেখার অগ্রগতি রিসেট করুন
+                    "\u09B8\u09AC \u09B6\u09AC\u09CD\u09A6 \u0985\u099C\u09BE\u09A8\u09BE \u09B9\u09AF\u09BC\u09C7 \u09AF\u09BE\u09AC\u09C7\u0964 \u0986\u09AA\u09A8\u09BF \u0995\u09BF \u09A8\u09BF\u09B6\u09CD\u099A\u09BF\u09A4?", // সব শব্দ অজানা হয়ে যাবে। আপনি কি নিশ্চিত?
+                    "\u09AC\u09BE\u09A4\u09BF\u09B2", // বাতিল
+                    "\u09B6\u09AC\u09CD\u09A6", // শব্দ
                 };
             default: // en, id, ms, fr, de, fa and fallback
                 return new String[]{
@@ -384,6 +482,14 @@ public class Localization {
                     "Select Surah", "Select Juz", "Select Reciter", "Go to Ayah",
                     "Ayah", "Built-in", "Bookmark added", "Bookmark removed",
                     "Select Text",
+                    "Learn Mode", "Reset",
+                    "Don't Know", "Know", "Similar",
+                    "Prev", "Next", "All Words",
+                    "Unknown", "Known", "Full Quran",
+                    "No word data", "Download Word by Word data first",
+                    "Similar to: ", "Reset Learning Progress",
+                    "This will mark all words as unknown. Are you sure?",
+                    "Cancel", "words",
                 };
         }
     }
