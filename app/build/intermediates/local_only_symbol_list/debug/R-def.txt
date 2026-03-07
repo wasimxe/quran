@@ -124,7 +124,6 @@ id btn_repeat
 id btn_reset
 id btn_reveal
 id btn_search_word
-id btn_share
 id btn_speed
 id btn_word_toggle
 id card_amoled

@@ -303,12 +303,21 @@ public class ReadingFragment extends Fragment {
             recyclerView.setAdapter(mushafAdapter);
             // Scroll to current surah
             recyclerView.scrollToPosition(MushafAdapter.surahToPosition(currentSurah));
+            // Transfer playing highlight to mushaf adapter
+            if (isPlaying && playingSurah > 0) {
+                mushafAdapter.setHighlightedAyah(playingSurah, playingAyah);
+            }
         } else if (!"arabic".equals(mode) && "arabic".equals(oldMode)) {
             // Switch back to ayah adapter
             recyclerView.setAdapter(pagerAdapter);
             pagerAdapter.setDisplayMode(mode);
             int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
             recyclerView.scrollToPosition(pos);
+            // Transfer playing highlight to pager adapter
+            if (isPlaying && playingSurah > 0) {
+                int playPos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
+                pagerAdapter.setPlayingPosition(playPos);
+            }
         } else if (pagerAdapter != null) {
             pagerAdapter.setDisplayMode(mode);
         }
@@ -467,10 +476,12 @@ public class ReadingFragment extends Fragment {
                             int[] sa = AyahPagerAdapter.positionToSurahAyah(nextPos);
                             playingSurah = sa[0];
                             playingAyah = sa[1];
-                            pagerAdapter.setPlayingPosition(nextPos);
+                            currentSurah = playingSurah;
+                            currentAyah = playingAyah;
                             audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatMode());
-                            // Scroll to keep playing ayah visible
-                            layoutManager.scrollToPositionWithOffset(nextPos, 0);
+                            highlightPlayingAyah();
+                            scrollToPlayingAyah();
+                            updateHeader();
                         } else {
                             stopPlayback();
                         }
@@ -493,6 +504,35 @@ public class ReadingFragment extends Fragment {
         playingAyah = -1;
         btnPlay.setImageResource(R.drawable.ic_play);
         pagerAdapter.setPlayingPosition(-1);
+        if (mushafAdapter != null) {
+            mushafAdapter.setHighlightedAyah(-1, -1);
+        }
+    }
+
+    /** Highlight the currently playing ayah in whichever adapter is active */
+    private void highlightPlayingAyah() {
+        if ("arabic".equals(displayMode) && mushafAdapter != null) {
+            mushafAdapter.setHighlightedAyah(playingSurah, playingAyah);
+        } else {
+            int pos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
+            pagerAdapter.setPlayingPosition(pos);
+        }
+    }
+
+    /** Scroll to keep the playing ayah visible in whichever adapter is active */
+    private void scrollToPlayingAyah() {
+        if ("arabic".equals(displayMode)) {
+            // In mushaf mode, scroll to the surah containing the playing ayah
+            int surahPos = MushafAdapter.surahToPosition(playingSurah);
+            int firstVisible = layoutManager.findFirstVisibleItemPosition();
+            // Only scroll if the surah is not already visible
+            if (surahPos != firstVisible) {
+                layoutManager.scrollToPositionWithOffset(surahPos, 0);
+            }
+        } else {
+            int pos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
+            layoutManager.scrollToPositionWithOffset(pos, 0);
+        }
     }
 
     private void setupRecyclerView() {
@@ -780,8 +820,7 @@ public class ReadingFragment extends Fragment {
             btnPlay.setImageResource(R.drawable.ic_pause);
             isPlaying = true;
 
-            int pos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
-            pagerAdapter.setPlayingPosition(pos);
+            highlightPlayingAyah();
         }
     }
 
@@ -913,8 +952,8 @@ public class ReadingFragment extends Fragment {
                         audioPlayer.playAyah(surah, ayah, repository.getRepeatMode());
                         btnPlay.setImageResource(R.drawable.ic_pause);
                         isPlaying = true;
-                        pagerAdapter.setPlayingPosition(position);
                         continuousPlay = true;
+                        highlightPlayingAyah();
                     }
 
                     @Override

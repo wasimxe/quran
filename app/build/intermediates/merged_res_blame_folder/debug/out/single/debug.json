@@ -12,12 +12,12 @@
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\layout\\item_ayah_page.xml"
     },
     {
-        "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_search_bg.xml.flat",
-        "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\search_bg.xml"
-    },
-    {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_my_location.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_my_location.xml"
+    },
+    {
+        "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_search_bg.xml.flat",
+        "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\search_bg.xml"
     },
     {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_bg_language_chip.xml.flat",
@@ -152,10 +152,6 @@
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\rounded_button.xml"
     },
     {
-        "merged": "com.tanxe.quran.app-merged_res-51:/drawable_ic_fullscreen.xml.flat",
-        "source": "com.tanxe.quran.app-main-53:/drawable/ic_fullscreen.xml"
-    },
-    {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_list.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_list.xml"
     },
@@ -244,6 +240,10 @@
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_learn.xml"
     },
     {
+        "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_fullscreen_exit.xml.flat",
+        "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_fullscreen_exit.xml"
+    },
+    {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_library.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_library.xml"
     },
@@ -280,10 +280,6 @@
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_pause.xml"
     },
     {
-        "merged": "com.tanxe.quran.app-merged_res-51:/drawable_ic_fullscreen_exit.xml.flat",
-        "source": "com.tanxe.quran.app-main-53:/drawable/ic_fullscreen_exit.xml"
-    },
-    {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_meccan.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_meccan.xml"
     },
@@ -294,6 +290,10 @@
     {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\layout_item_word_frequency.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\layout\\item_word_frequency.xml"
+    },
+    {
+        "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_fullscreen.xml.flat",
+        "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_fullscreen.xml"
     },
     {
         "merged": "com.tanxe.quran.app-merged_res-51:/layout_fragment_reading.xml.flat",
