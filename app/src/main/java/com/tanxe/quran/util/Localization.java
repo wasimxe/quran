@@ -89,8 +89,11 @@ public class Localization {
     public static final int RESET_CONFIRM = 79;
     public static final int CANCEL = 80;
     public static final int WORDS = 81;
+    public static final int COMPARE_TRANSLATIONS = 82;
+    public static final int MODE_HAFIZ = 83;
+    public static final int ARABIC_FONT = 84;
 
-    private static final int LABEL_COUNT = 82;
+    private static final int LABEL_COUNT = 85;
 
     public static String get(String lang, int key) {
         return getLabels(lang)[key];
@@ -183,6 +186,9 @@ public class Localization {
                     "\u062A\u0645\u0627\u0645 \u0627\u0644\u0641\u0627\u0638 \u0646\u0627\u0645\u0639\u0644\u0648\u0645 \u06C1\u0648 \u062C\u0627\u0626\u06CC\u06BA \u06AF\u06D2\u06D4 \u06A9\u06CC\u0627 \u0622\u067E \u06A9\u0648 \u06CC\u0642\u06CC\u0646 \u06C1\u06D2\u061F", // تمام الفاظ نامعلوم ہو جائیں گے۔ کیا آپ کو یقین ہے؟
                     "\u0645\u0646\u0633\u0648\u062E", // منسوخ
                     "\u0627\u0644\u0641\u0627\u0638", // الفاظ
+                    "\u062A\u0631\u0627\u062C\u0645 \u06A9\u0627 \u0645\u0648\u0627\u0632\u0646\u06C1", // تراجم کا موازنہ
+                    "\u062D\u0627\u0641\u0638", // حافظ
+                    "\u0639\u0631\u0628\u06CC \u0641\u0627\u0646\u0679", // عربی فانٹ
                 };
             case "ar":
                 return new String[]{
@@ -268,6 +274,9 @@ public class Localization {
                     "\u0633\u064A\u062A\u0645 \u062A\u062D\u062F\u064A\u062F \u062C\u0645\u064A\u0639 \u0627\u0644\u0643\u0644\u0645\u0627\u062A \u0643\u063A\u064A\u0631 \u0645\u0639\u0631\u0648\u0641\u0629. \u0647\u0644 \u0623\u0646\u062A \u0645\u062A\u0623\u0643\u062F\u061F", // سيتم تحديد جميع الكلمات كغير معروفة. هل أنت متأكد؟
                     "\u0625\u0644\u063A\u0627\u0621", // إلغاء
                     "\u0643\u0644\u0645\u0627\u062A", // كلمات
+                    "\u0645\u0642\u0627\u0631\u0646\u0629 \u0627\u0644\u062A\u0631\u062C\u0645\u0627\u062A", // مقارنة الترجمات
+                    "\u062D\u0627\u0641\u0638", // حافظ
+                    "\u0627\u0644\u062E\u0637 \u0627\u0644\u0639\u0631\u0628\u064A", // الخط العربي
                 };
             case "hi":
                 return new String[]{
@@ -348,6 +357,9 @@ public class Localization {
                     "\u0938\u092D\u0940 \u0936\u092C\u094D\u0926 \u0905\u091C\u094D\u091E\u093E\u0924 \u0939\u094B \u091C\u093E\u090F\u0901\u0917\u0947\u0964 \u0915\u094D\u092F\u093E \u0906\u092A \u0928\u093F\u0936\u094D\u091A\u093F\u0924 \u0939\u0948\u0902?", // सभी शब्द अज्ञात हो जाएँगे। क्या आप निश्चित हैं?
                     "\u0930\u0926\u094D\u0926 \u0915\u0930\u0947\u0902", // रद्द करें
                     "\u0936\u092C\u094D\u0926", // शब्द
+                    "\u0905\u0928\u0941\u0935\u093E\u0926\u094B\u0902 \u0915\u0940 \u0924\u0941\u0932\u0928\u093E", // अनुवादों की तुलना
+                    "\u0939\u093E\u0931\u093F\u095B", // हाफ़िज़
+                    "\u0905\u0930\u092C\u0940 \u092B\u093C\u0949\u0928\u094D\u091F", // अरबी फ़ॉन्ट
                 };
             case "tr":
                 return new String[]{
@@ -378,6 +390,9 @@ public class Localization {
                     "Benzer: ", "\u00D6\u011Frenme \u0130lerlemesini S\u0131f\u0131rla",
                     "T\u00FCm kelimeler bilinmeyen olarak i\u015Faretlenecek. Emin misiniz?",
                     "\u0130ptal", "kelime",
+                    "\u00C7evirileri Kar\u015F\u0131la\u015Ft\u0131r",
+                    "Hafiz",
+                    "Arap\u00E7a Yaz\u0131 Tipi",
                 };
             case "bn":
                 return new String[]{
@@ -458,6 +473,9 @@ public class Localization {
                     "\u09B8\u09AC \u09B6\u09AC\u09CD\u09A6 \u0985\u099C\u09BE\u09A8\u09BE \u09B9\u09AF\u09BC\u09C7 \u09AF\u09BE\u09AC\u09C7\u0964 \u0986\u09AA\u09A8\u09BF \u0995\u09BF \u09A8\u09BF\u09B6\u09CD\u099A\u09BF\u09A4?", // সব শব্দ অজানা হয়ে যাবে। আপনি কি নিশ্চিত?
                     "\u09AC\u09BE\u09A4\u09BF\u09B2", // বাতিল
                     "\u09B6\u09AC\u09CD\u09A6", // শব্দ
+                    "\u0985\u09A8\u09C1\u09AC\u09BE\u09A6 \u09A4\u09C1\u09B2\u09A8\u09BE", // অনুবাদ তুলনা
+                    "\u09B9\u09BE\u09AB\u09BF\u099C", // হাফিজ
+                    "\u0986\u09B0\u09AC\u09BF \u09AB\u09A8\u09CD\u099F", // আরবি ফন্ট
                 };
             default: // en, id, ms, fr, de, fa and fallback
                 return new String[]{
@@ -490,6 +508,9 @@ public class Localization {
                     "Similar to: ", "Reset Learning Progress",
                     "This will mark all words as unknown. Are you sure?",
                     "Cancel", "words",
+                    "Compare Translations",
+                    "Hafiz",
+                    "Arabic Font",
                 };
         }
     }

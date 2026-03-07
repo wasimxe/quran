@@ -182,6 +182,7 @@ public class AudioPlayerManager {
             player = null;
             isPlaying = false;
         }
+        callback = null;
         INSTANCE = null;
     }
 }

@@ -75,6 +75,7 @@ public abstract class QuranDatabase extends RoomDatabase {
                     )
                     .addMigrations(MIGRATION_1_2)
                     .fallbackToDestructiveMigration()
+                    .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .build();
                 }
             }

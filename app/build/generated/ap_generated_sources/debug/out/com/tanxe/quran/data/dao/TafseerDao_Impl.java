@@ -11,6 +11,7 @@ import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
 import com.tanxe.quran.data.entity.Tafseer;
 import java.lang.Class;
+import java.lang.Integer;
 import java.lang.Override;
 import java.lang.String;
 import java.lang.SuppressWarnings;
@@ -159,6 +160,58 @@ public final class TafseerDao_Impl implements TafseerDao {
   }
 
   @Override
+  public List<Tafseer> getTafseersBySurah(final int surah, final String edition) {
+    final String _sql = "SELECT * FROM tafseers WHERE surahNumber = ? AND edition = ? ORDER BY ayahNumber";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 2);
+    int _argIndex = 1;
+    _statement.bindLong(_argIndex, surah);
+    _argIndex = 2;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+      final int _cursorIndexOfSurahNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "surahNumber");
+      final int _cursorIndexOfAyahNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "ayahNumber");
+      final int _cursorIndexOfText = CursorUtil.getColumnIndexOrThrow(_cursor, "text");
+      final int _cursorIndexOfEdition = CursorUtil.getColumnIndexOrThrow(_cursor, "edition");
+      final int _cursorIndexOfLanguage = CursorUtil.getColumnIndexOrThrow(_cursor, "language");
+      final List<Tafseer> _result = new ArrayList<Tafseer>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final Tafseer _item;
+        _item = new Tafseer();
+        _item.id = _cursor.getInt(_cursorIndexOfId);
+        _item.surahNumber = _cursor.getInt(_cursorIndexOfSurahNumber);
+        _item.ayahNumber = _cursor.getInt(_cursorIndexOfAyahNumber);
+        if (_cursor.isNull(_cursorIndexOfText)) {
+          _item.text = null;
+        } else {
+          _item.text = _cursor.getString(_cursorIndexOfText);
+        }
+        if (_cursor.isNull(_cursorIndexOfEdition)) {
+          _item.edition = null;
+        } else {
+          _item.edition = _cursor.getString(_cursorIndexOfEdition);
+        }
+        if (_cursor.isNull(_cursorIndexOfLanguage)) {
+          _item.language = null;
+        } else {
+          _item.language = _cursor.getString(_cursorIndexOfLanguage);
+        }
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
   public List<String> getAvailableEditions() {
     final String _sql = "SELECT DISTINCT edition FROM tafseers";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
@@ -286,6 +339,88 @@ public final class TafseerDao_Impl implements TafseerDao {
         _result = _cursor.getInt(0);
       } else {
         _result = 0;
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public long getEditionTextSize(final String edition) {
+    final String _sql = "SELECT COALESCE(SUM(LENGTH(text)), 0) FROM tafseers WHERE edition = ?";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final long _result;
+      if (_cursor.moveToFirst()) {
+        _result = _cursor.getLong(0);
+      } else {
+        _result = 0L;
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public int getDistinctSurahCount(final String edition) {
+    final String _sql = "SELECT COUNT(DISTINCT surahNumber) FROM tafseers WHERE edition = ?";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _result;
+      if (_cursor.moveToFirst()) {
+        _result = _cursor.getInt(0);
+      } else {
+        _result = 0;
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public List<Integer> getDownloadedSurahs(final String edition) {
+    final String _sql = "SELECT DISTINCT surahNumber FROM tafseers WHERE edition = ?";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final List<Integer> _result = new ArrayList<Integer>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final Integer _item;
+        if (_cursor.isNull(0)) {
+          _item = null;
+        } else {
+          _item = _cursor.getInt(0);
+        }
+        _result.add(_item);
       }
       return _result;
     } finally {

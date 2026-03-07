@@ -16,7 +16,6 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.card.MaterialCardView;
-import com.google.android.material.slider.Slider;
 import com.tanxe.quran.MainActivity;
 import com.tanxe.quran.R;
 import com.tanxe.quran.data.repository.QuranRepository;
@@ -26,8 +25,6 @@ import com.tanxe.quran.util.Localization;
 public class SettingsFragment extends Fragment {
     private QuranRepository repository;
     private ThemeManager theme;
-
-    private Slider sliderArabicSize, sliderTranslationSize;
 
     @Nullable
     @Override
@@ -47,24 +44,6 @@ public class SettingsFragment extends Fragment {
     }
 
     private void initViews(View view) {
-        // Font sliders
-        sliderArabicSize = view.findViewById(R.id.slider_arabic_size);
-        sliderTranslationSize = view.findViewById(R.id.slider_translation_size);
-
-        // Snap values to valid step positions before setting on slider
-        float arabicVal = snapToStep(repository.getArabicFontSize(), 20f, 60f, 2f);
-        float transVal = snapToStep(repository.getTranslationFontSize(), 12f, 36f, 2f);
-        sliderArabicSize.setValue(arabicVal);
-        sliderTranslationSize.setValue(transVal);
-
-        sliderArabicSize.addOnChangeListener((slider, value, fromUser) -> {
-            repository.setArabicFontSize(value);
-        });
-
-        sliderTranslationSize.addOnChangeListener((slider, value, fromUser) -> {
-            repository.setTranslationFontSize(value);
-        });
-
         // Theme cards (6 themes)
         MaterialCardView cardEmerald = view.findViewById(R.id.card_emerald);
         MaterialCardView cardMidnight = view.findViewById(R.id.card_midnight);
@@ -182,12 +161,6 @@ public class SettingsFragment extends Fragment {
             if (tv != null) tv.setTextColor(theme.getAccentColor());
         }
 
-        int[] labelIds = {R.id.tv_arabic_size_label, R.id.tv_trans_size_label};
-        for (int id : labelIds) {
-            TextView tv = getView().findViewById(id);
-            if (tv != null) tv.setTextColor(theme.getPrimaryTextColor());
-        }
-
         TextView tvAbout = getView().findViewById(R.id.tv_about);
         if (tvAbout != null) tvAbout.setTextColor(theme.getSecondaryTextColor());
 
@@ -239,12 +212,6 @@ public class SettingsFragment extends Fragment {
         TextView tvThemeHeader = getView().findViewById(R.id.tv_theme_header);
         if (tvThemeHeader != null) tvThemeHeader.setText(Localization.get(lang, Localization.THEME));
 
-        TextView tvArabicLabel = getView().findViewById(R.id.tv_arabic_size_label);
-        if (tvArabicLabel != null) tvArabicLabel.setText(Localization.get(lang, Localization.ARABIC_FONT_SIZE));
-
-        TextView tvTransLabel = getView().findViewById(R.id.tv_trans_size_label);
-        if (tvTransLabel != null) tvTransLabel.setText(Localization.get(lang, Localization.TRANSLATION_FONT_SIZE));
-
         TextView tvLangHeader = getView().findViewById(R.id.tv_language_header);
         if (tvLangHeader != null) tvLangHeader.setText(Localization.get(lang, Localization.LANGUAGE));
 
@@ -261,13 +228,7 @@ public class SettingsFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        loadReadingProgress();
+        // Reading progress already loaded in onViewCreated; only refresh if needed
     }
 
-    /** Snap a value to the nearest valid step position within [min, max] */
-    private float snapToStep(float value, float min, float max, float step) {
-        value = Math.max(min, Math.min(max, value));
-        float snapped = Math.round((value - min) / step) * step + min;
-        return Math.max(min, Math.min(max, snapped));
-    }
 }

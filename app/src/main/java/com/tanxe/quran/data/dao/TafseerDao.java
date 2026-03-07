@@ -17,6 +17,9 @@ public interface TafseerDao {
     @Query("SELECT * FROM tafseers WHERE surahNumber = :surah AND ayahNumber = :ayah AND edition = :edition LIMIT 1")
     Tafseer getTafseer(int surah, int ayah, String edition);
 
+    @Query("SELECT * FROM tafseers WHERE surahNumber = :surah AND edition = :edition ORDER BY ayahNumber")
+    List<Tafseer> getTafseersBySurah(int surah, String edition);
+
     @Query("SELECT DISTINCT edition FROM tafseers")
     List<String> getAvailableEditions();
 
@@ -31,4 +34,13 @@ public interface TafseerDao {
 
     @Query("SELECT COUNT(*) FROM tafseers WHERE edition = :edition")
     int getEditionCount(String edition);
+
+    @Query("SELECT COALESCE(SUM(LENGTH(text)), 0) FROM tafseers WHERE edition = :edition")
+    long getEditionTextSize(String edition);
+
+    @Query("SELECT COUNT(DISTINCT surahNumber) FROM tafseers WHERE edition = :edition")
+    int getDistinctSurahCount(String edition);
+
+    @Query("SELECT DISTINCT surahNumber FROM tafseers WHERE edition = :edition")
+    List<Integer> getDownloadedSurahs(String edition);
 }

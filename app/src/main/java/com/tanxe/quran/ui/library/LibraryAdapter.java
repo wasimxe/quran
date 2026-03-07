@@ -32,6 +32,8 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
     private final ThemeManager theme;
     private final OnEditionAction listener;
     private String activeIdentifier = "";
+    private String currentLanguageFilter = "all";
+    private String currentQuery = "";
 
     public LibraryAdapter(ThemeManager theme, OnEditionAction listener) {
         this.theme = theme;
@@ -44,39 +46,73 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
     }
 
     public void setEditions(List<EditionInfo> editions) {
+        // Preserve download progress from currently in-progress editions
+        java.util.Map<String, int[]> inProgress = new java.util.HashMap<>();
+        for (EditionInfo old : allEditions) {
+            if (old.downloadProgress > 0 && old.downloadProgress < 100) {
+                inProgress.put(old.identifier, new int[]{old.downloadProgress});
+            }
+        }
         this.allEditions = editions != null ? editions : new ArrayList<>();
-        this.filteredEditions = new ArrayList<>(this.allEditions);
-        notifyDataSetChanged();
+        // Restore in-progress state
+        for (EditionInfo e : allEditions) {
+            int[] prog = inProgress.get(e.identifier);
+            if (prog != null) {
+                e.downloadProgress = prog[0];
+            }
+        }
+        applyFilters();
+    }
+
+    /** Find edition by identifier in the current list (for updating download progress) */
+    public EditionInfo findByIdentifier(String identifier) {
+        for (EditionInfo e : allEditions) {
+            if (e.identifier != null && e.identifier.equals(identifier)) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    /** Update an edition by identifier and refresh its row */
+    public void updateByIdentifier(String identifier) {
+        for (int i = 0; i < filteredEditions.size(); i++) {
+            if (filteredEditions.get(i).identifier != null &&
+                    filteredEditions.get(i).identifier.equals(identifier)) {
+                notifyItemChanged(i);
+                return;
+            }
+        }
     }
 
     public void filterByLanguage(String language) {
-        if (language == null || language.isEmpty() || "all".equals(language)) {
-            filteredEditions = new ArrayList<>(allEditions);
-        } else {
-            filteredEditions = new ArrayList<>();
-            for (EditionInfo e : allEditions) {
-                if (language.equals(e.language)) {
-                    filteredEditions.add(e);
-                }
-            }
-        }
-        notifyDataSetChanged();
+        this.currentLanguageFilter = (language == null || language.isEmpty()) ? "all" : language;
+        applyFilters();
     }
 
     public void filterByQuery(String query) {
-        if (query == null || query.isEmpty()) {
-            filteredEditions = new ArrayList<>(allEditions);
-        } else {
-            String lower = query.toLowerCase();
-            filteredEditions = new ArrayList<>();
-            for (EditionInfo e : allEditions) {
-                if ((e.name != null && e.name.toLowerCase().contains(lower)) ||
+        this.currentQuery = (query == null) ? "" : query;
+        applyFilters();
+    }
+
+    private void applyFilters() {
+        filteredEditions = new ArrayList<>();
+        String lower = currentQuery.toLowerCase();
+        for (EditionInfo e : allEditions) {
+            // Language filter
+            if (!"all".equals(currentLanguageFilter) && !currentLanguageFilter.equals(e.language)) {
+                continue;
+            }
+            // Query filter
+            if (!currentQuery.isEmpty()) {
+                if (!((e.name != null && e.name.toLowerCase().contains(lower)) ||
                         (e.language != null && e.language.toLowerCase().contains(lower)) ||
                         (e.languageName != null && e.languageName.toLowerCase().contains(lower)) ||
-                        (e.identifier != null && e.identifier.toLowerCase().contains(lower))) {
-                    filteredEditions.add(e);
+                        (e.identifier != null && e.identifier.toLowerCase().contains(lower)))) {
+                    continue;
                 }
             }
+            filteredEditions.add(e);
         }
         notifyDataSetChanged();
     }
@@ -107,6 +143,15 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
         String typeLabel = edition.type != null ? edition.type.substring(0, 1).toUpperCase() + edition.type.substring(1) : "";
         holder.tvType.setText(typeLabel);
         holder.tvType.setTextColor(theme.getSecondaryTextColor());
+
+        // Size display
+        if (edition.sizeText != null && !edition.sizeText.isEmpty()) {
+            holder.tvSize.setVisibility(View.VISIBLE);
+            holder.tvSize.setText(edition.sizeText);
+            holder.tvSize.setTextColor(theme.getSecondaryTextColor());
+        } else {
+            holder.tvSize.setVisibility(View.GONE);
+        }
 
         holder.container.setBackgroundColor(theme.getBackgroundColor());
 
@@ -156,7 +201,7 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         View container;
-        TextView tvName, tvLanguage, tvType;
+        TextView tvName, tvLanguage, tvType, tvSize;
         ImageView ivActiveTick;
         ImageButton btnAction;
         ProgressBar progressBar;
@@ -167,6 +212,7 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
             tvName = itemView.findViewById(R.id.tv_name);
             tvLanguage = itemView.findViewById(R.id.tv_language);
             tvType = itemView.findViewById(R.id.tv_type);
+            tvSize = itemView.findViewById(R.id.tv_size);
             ivActiveTick = itemView.findViewById(R.id.iv_active_tick);
             btnAction = itemView.findViewById(R.id.btn_action);
             progressBar = itemView.findViewById(R.id.progress_bar);

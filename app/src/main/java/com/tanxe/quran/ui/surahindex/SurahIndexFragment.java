@@ -84,6 +84,7 @@ public class SurahIndexFragment extends Fragment {
 
         rvSurahs = view.findViewById(R.id.rv_surahs);
         rvSurahs.setLayoutManager(new LinearLayoutManager(requireContext()));
+        rvSurahs.setHasFixedSize(true);
         tvEmpty = view.findViewById(R.id.tv_empty);
 
         tabLayout = view.findViewById(R.id.tab_layout);
@@ -124,7 +125,7 @@ public class SurahIndexFragment extends Fragment {
             if (getActivity() instanceof MainActivity) {
                 ((MainActivity) getActivity()).navigateToAyah(surah, ayah);
             }
-        });
+        }, lang);
 
         rvSurahs.setAdapter(surahAdapter);
 

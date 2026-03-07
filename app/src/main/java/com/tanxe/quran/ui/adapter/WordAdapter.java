@@ -16,11 +16,11 @@ import com.tanxe.quran.theme.ThemeManager;
 import java.util.List;
 
 public class WordAdapter extends RecyclerView.Adapter<WordAdapter.ViewHolder> {
-    private final List<WordByWord> words;
+    private List<WordByWord> words;
     private final ThemeManager theme;
     private final Typeface arabicFont;
-    private final float arabicFontSize;
-    private final float translationFontSize;
+    private float arabicFontSize;
+    private float translationFontSize;
 
     public WordAdapter(List<WordByWord> words, ThemeManager theme, Typeface arabicFont,
                        float arabicFontSize, float translationFontSize) {
@@ -29,6 +29,13 @@ public class WordAdapter extends RecyclerView.Adapter<WordAdapter.ViewHolder> {
         this.arabicFont = arabicFont;
         this.arabicFontSize = arabicFontSize;
         this.translationFontSize = translationFontSize;
+    }
+
+    public void updateWords(List<WordByWord> newWords, float arabicSize, float transSize) {
+        this.words = newWords;
+        this.arabicFontSize = arabicSize;
+        this.translationFontSize = transSize;
+        notifyDataSetChanged();
     }
 
     @NonNull

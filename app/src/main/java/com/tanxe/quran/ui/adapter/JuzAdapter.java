@@ -11,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.card.MaterialCardView;
 import com.tanxe.quran.R;
-import com.tanxe.quran.data.repository.QuranRepository;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.util.Localization;
 
@@ -27,12 +26,16 @@ public class JuzAdapter extends RecyclerView.Adapter<JuzAdapter.ViewHolder> {
     private final ThemeManager theme;
     private final Typeface arabicFont;
     private final OnJuzClick listener;
+    private final String cachedJuzLabel;
+    private final String cachedStartsLabel;
     private List<JuzItem> items = new ArrayList<>();
 
-    public JuzAdapter(ThemeManager theme, Typeface arabicFont, OnJuzClick listener) {
+    public JuzAdapter(ThemeManager theme, Typeface arabicFont, OnJuzClick listener, String lang) {
         this.theme = theme;
         this.arabicFont = arabicFont;
         this.listener = listener;
+        this.cachedJuzLabel = Localization.get(lang, Localization.JUZ);
+        this.cachedStartsLabel = Localization.get(lang, Localization.STARTS);
     }
 
     public void setItems(List<JuzItem> items) {
@@ -56,12 +59,11 @@ public class JuzAdapter extends RecyclerView.Adapter<JuzAdapter.ViewHolder> {
             ((MaterialCardView) holder.itemView).setCardBackgroundColor(theme.getCardColor());
         }
 
-        String lang = QuranRepository.getInstance(holder.itemView.getContext()).getLanguage();
         holder.tvNumber.setText(String.valueOf(item.juzNumber));
         holder.tvNumber.setTextColor(theme.getAccentColor());
-        holder.tvTitle.setText(Localization.get(lang, Localization.JUZ) + " " + item.juzNumber);
+        holder.tvTitle.setText(cachedJuzLabel + " " + item.juzNumber);
         holder.tvTitle.setTextColor(theme.getPrimaryTextColor());
-        holder.tvStart.setText(Localization.get(lang, Localization.STARTS) + ": " + item.startSurahName + " " + item.startSurah + ":" + item.startAyah);
+        holder.tvStart.setText(cachedStartsLabel + ": " + item.startSurahName + " " + item.startSurah + ":" + item.startAyah);
         holder.tvStart.setTextColor(theme.getSecondaryTextColor());
         holder.tvSurahs.setText(item.surahRange);
         holder.tvSurahs.setTextColor(theme.getSecondaryTextColor());

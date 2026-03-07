@@ -27,6 +27,7 @@ public class AyahActionsBottomSheet extends BottomSheetDialogFragment {
         void onShareAsImage();
         void onCopyArabic();
         default void onSelectText() {}
+        default void onCompareTranslations() {}
     }
 
     private ActionListener listener;
@@ -111,7 +112,16 @@ public class AyahActionsBottomSheet extends BottomSheetDialogFragment {
         setupActionRow(view, R.id.action_select_text, textColor, iconColor);
         setupActionRow(view, R.id.action_copy, textColor, iconColor);
 
+        // Compare translations row
+        setupActionRow(view, R.id.action_compare_translations, textColor, iconColor);
+        TextView tvCompare = view.findViewById(R.id.tv_compare_translations);
+        if (tvCompare != null) tvCompare.setText(Localization.get(lang, Localization.COMPARE_TRANSLATIONS));
+
         // Click handlers
+        view.findViewById(R.id.action_compare_translations).setOnClickListener(v -> {
+            if (listener != null) listener.onCompareTranslations();
+            dismiss();
+        });
         view.findViewById(R.id.action_bookmark).setOnClickListener(v -> {
             if (listener != null) listener.onBookmarkToggle();
             dismiss();

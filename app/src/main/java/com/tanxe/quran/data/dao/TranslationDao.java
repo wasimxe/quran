@@ -17,6 +17,9 @@ public interface TranslationDao {
     @Query("SELECT * FROM translations WHERE surahNumber = :surah AND ayahNumber = :ayah AND edition = :edition LIMIT 1")
     Translation getTranslation(int surah, int ayah, String edition);
 
+    @Query("SELECT * FROM translations WHERE surahNumber = :surah AND edition = :edition ORDER BY ayahNumber")
+    List<Translation> getTranslationsBySurah(int surah, String edition);
+
     @Query("SELECT DISTINCT edition FROM translations")
     List<String> getAvailableEditions();
 
@@ -31,4 +34,10 @@ public interface TranslationDao {
 
     @Query("SELECT COUNT(*) FROM translations WHERE edition = :edition")
     int getEditionCount(String edition);
+
+    @Query("SELECT COALESCE(SUM(LENGTH(text)), 0) FROM translations WHERE edition = :edition")
+    long getEditionTextSize(String edition);
+
+    @Query("SELECT COUNT(DISTINCT surahNumber) FROM translations WHERE edition = :edition")
+    int getDistinctSurahCount(String edition);
 }

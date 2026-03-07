@@ -14,6 +14,8 @@ import com.tanxe.quran.data.api.QuranApiService;
 import com.tanxe.quran.data.dao.*;
 import com.tanxe.quran.data.entity.*;
 
+import android.util.LruCache;
+
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -38,6 +40,12 @@ public class QuranRepository {
     private final ReadingProgressDao readingProgressDao;
     private final SharedPreferences prefs;
     private final ExecutorService executor;
+
+    // LRU caches for hot-path DB queries during scrolling
+    // Key: "surah:ayah", caches individual ayah lookups
+    private final LruCache<String, Ayah> ayahCache = new LruCache<>(256);
+    // Key: surah number, caches full surah ayah lists (for MushafAdapter)
+    private final LruCache<Integer, List<Ayah>> surahCache = new LruCache<>(10);
 
     private QuranRepository(Context context) {
         QuranDatabase db = QuranDatabase.getInstance(context);
@@ -70,8 +78,28 @@ public class QuranRepository {
 
     // === Ayah operations ===
     public void insertAyahs(List<Ayah> ayahs) { ayahDao.insertAll(ayahs); }
-    public Ayah getAyah(int surah, int ayah) { return ayahDao.getAyah(surah, ayah); }
-    public List<Ayah> getAyahsBySurah(int surah) { return ayahDao.getAyahsBySurah(surah); }
+    public Ayah getAyah(int surah, int ayah) {
+        String key = surah + ":" + ayah;
+        Ayah cached = ayahCache.get(key);
+        if (cached != null) return cached;
+        Ayah result = ayahDao.getAyah(surah, ayah);
+        if (result != null) ayahCache.put(key, result);
+        return result;
+    }
+
+    public List<Ayah> getAyahsBySurah(int surah) {
+        List<Ayah> cached = surahCache.get(surah);
+        if (cached != null) return cached;
+        List<Ayah> result = ayahDao.getAyahsBySurah(surah);
+        if (result != null && !result.isEmpty()) {
+            surahCache.put(surah, result);
+            // Also populate individual ayah cache
+            for (Ayah a : result) {
+                ayahCache.put(a.surahNumber + ":" + a.ayahNumber, a);
+            }
+        }
+        return result;
+    }
     public List<Ayah> getAyahsByJuz(int juz) { return ayahDao.getAyahsByJuz(juz); }
     public int getAyahCount(int surah) { return ayahDao.getAyahCount(surah); }
     public int getTotalAyahCount() { return ayahDao.getTotalAyahCount(); }
@@ -82,16 +110,25 @@ public class QuranRepository {
     // === Translation operations ===
     public void insertTranslations(List<Translation> translations) { translationDao.insertAll(translations); }
     public Translation getTranslation(int surah, int ayah, String edition) { return translationDao.getTranslation(surah, ayah, edition); }
+    public List<Translation> getTranslationsBySurah(int surah, String edition) { return translationDao.getTranslationsBySurah(surah, edition); }
     public List<String> getAvailableTranslations() { return translationDao.getAvailableEditions(); }
     public List<String> getTranslationsByLanguage(String lang) { return translationDao.getEditionsByLanguage(lang); }
     public void deleteTranslation(String edition) { translationDao.deleteEdition(edition); }
+    public int getTranslationCount(String edition) { return translationDao.getEditionCount(edition); }
+    public long getTranslationTextSize(String edition) { return translationDao.getEditionTextSize(edition); }
+    public int getTranslationSurahCount(String edition) { return translationDao.getDistinctSurahCount(edition); }
 
     // === Tafseer operations ===
     public void insertTafseers(List<Tafseer> tafseers) { tafseerDao.insertAll(tafseers); }
     public Tafseer getTafseer(int surah, int ayah, String edition) { return tafseerDao.getTafseer(surah, ayah, edition); }
+    public List<Tafseer> getTafseersBySurah(int surah, String edition) { return tafseerDao.getTafseersBySurah(surah, edition); }
     public List<String> getAvailableTafseers() { return tafseerDao.getAvailableEditions(); }
     public List<String> getTafseersByLanguage(String lang) { return tafseerDao.getEditionsByLanguage(lang); }
     public void deleteTafseer(String edition) { tafseerDao.deleteEdition(edition); }
+    public int getTafseerCount(String edition) { return tafseerDao.getEditionCount(edition); }
+    public long getTafseerTextSize(String edition) { return tafseerDao.getEditionTextSize(edition); }
+    public int getTafseerSurahCount(String edition) { return tafseerDao.getDistinctSurahCount(edition); }
+    public List<Integer> getTafseerDownloadedSurahs(String edition) { return tafseerDao.getDownloadedSurahs(edition); }
 
     // === Word by Word operations ===
     public void insertWords(List<WordByWord> words) { wordByWordDao.insertAll(words); }
@@ -103,6 +140,10 @@ public class QuranRepository {
     public List<com.tanxe.quran.data.dao.WordByWordDao.WordWithTranslation> getWordsWithTranslationsBySurah(String language, int surah) { return wordByWordDao.getWordsWithTranslationsBySurah(language, surah); }
     public List<com.tanxe.quran.data.dao.WordByWordDao.TranslationCount> getTranslationsForWord(String language, String arabicWord) { return wordByWordDao.getTranslationsForWord(language, arabicWord); }
     public void deleteWbw(String language) { wordByWordDao.deleteLanguage(language); }
+    public int getWbwWordCount(String language) { return wordByWordDao.getWordCount(language); }
+    public long getWbwTextSize(String language) { return wordByWordDao.getLanguageTextSize(language); }
+    public int getWbwSurahCount(String language) { return wordByWordDao.getDistinctSurahCount(language); }
+    public List<Integer> getWbwDownloadedSurahs(String language) { return wordByWordDao.getDownloadedSurahs(language); }
 
     // === Bookmark operations ===
     public void addBookmark(Bookmark bookmark) { bookmarkDao.insert(bookmark); }
@@ -156,13 +197,13 @@ public class QuranRepository {
 
                 EditionInfo edition = new EditionInfo(identifier, englishName, language, name, type, direction);
 
-                // Check if already downloaded in translations/tafseers table
+                // Check if fully downloaded (all 114 surahs present)
                 if ("translation".equals(type)) {
-                    int count = translationDao.getEditionCount(identifier);
-                    edition.isDownloaded = count > 0;
+                    int surahCount = translationDao.getDistinctSurahCount(identifier);
+                    edition.isDownloaded = surahCount >= 114;
                 } else {
-                    int count = tafseerDao.getEditionCount(identifier);
-                    edition.isDownloaded = count > 0;
+                    int surahCount = tafseerDao.getDistinctSurahCount(identifier);
+                    edition.isDownloaded = surahCount >= 114;
                 }
 
                 editions.add(edition);
@@ -198,6 +239,7 @@ public class QuranRepository {
 
     public List<ReciterInfo> getAllReciters() { return reciterInfoDao.getAll(); }
     public ReciterInfo getReciterByIdentifier(String identifier) { return reciterInfoDao.getByIdentifier(identifier); }
+    public void updateReciterDownloadState(String identifier, boolean downloaded) { reciterInfoDao.updateDownloadState(identifier, downloaded); }
 
     public String getSelectedReciter() { return prefs.getString("selected_reciter", "Alafasy_128kbps"); }
     public void saveSelectedReciter(String identifier) { prefs.edit().putString("selected_reciter", identifier).apply(); }
@@ -340,4 +382,7 @@ public class QuranRepository {
 
     public boolean isEditionCatalogLoaded() { return prefs.getBoolean("edition_catalog_loaded", false); }
     public void setEditionCatalogLoaded(boolean loaded) { prefs.edit().putBoolean("edition_catalog_loaded", loaded).apply(); }
+
+    public String getSelectedArabicFont() { return prefs.getString("arabic_font", "indopak.ttf"); }
+    public void saveSelectedArabicFont(String fontFile) { prefs.edit().putString("arabic_font", fontFile).apply(); }
 }

@@ -46,6 +46,30 @@
         android:layout_marginTop="4dp"
         android:layout_marginBottom="8dp" />
 
+    <!-- Compare Translations -->
+    <LinearLayout
+        android:id="@+id/action_compare_translations"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:background="?attr/selectableItemBackground">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_search" />
+
+        <TextView
+            android:id="@+id/tv_compare_translations"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Compare Translations"
+            android:textSize="15sp"
+            android:layout_marginStart="16dp" />
+    </LinearLayout>
+
     <!-- Action items -->
     <LinearLayout
         android:id="@+id/action_bookmark"

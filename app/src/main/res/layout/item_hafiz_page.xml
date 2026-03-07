@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/hafiz_page_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingHorizontal="10dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <!-- All content in one TextView — surah header, bismillah, ayahs all count as 16 lines -->
+    <TextView
+        android:id="@+id/tv_page_content"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:textDirection="rtl"
+        android:textAlignment="viewStart"
+        android:justificationMode="inter_word"
+        android:includeFontPadding="false"
+        android:elegantTextHeight="false"
+        android:maxLines="16" />
+
+</LinearLayout>

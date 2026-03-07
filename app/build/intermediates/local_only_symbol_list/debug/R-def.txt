@@ -92,6 +92,7 @@ drawable language_card_bg
 drawable rounded_button
 drawable search_bg
 id action_bookmark
+id action_compare_translations
 id action_copy
 id action_play
 id action_reading_point
@@ -111,6 +112,7 @@ id btn_exit_fullscreen
 id btn_fullscreen
 id btn_know
 id btn_mode_arabic
+id btn_mode_hafiz
 id btn_mode_tafseer
 id btn_mode_translation
 id btn_mode_wbw
@@ -141,6 +143,8 @@ id chip_search_all
 id chip_search_arabic
 id chip_search_tafseer
 id chip_search_translation
+id chip_tafseers
+id chip_translations
 id chip_unknown
 id divider_bottom
 id divider_top
@@ -154,6 +158,7 @@ id fab_reading_point
 id filter_chips
 id floating_toolbar
 id fragment_container
+id hafiz_page_container
 id header_bar
 id ic_bookmark
 id iv_active_tick
@@ -194,8 +199,6 @@ id search_layout
 id settings_container
 id setup_container
 id sheet_container
-id slider_arabic_size
-id slider_translation_size
 id spinner_language
 id spinner_scope
 id spinner_source
@@ -204,12 +207,12 @@ id surah_item_container
 id tab_category
 id tab_layout
 id theme_grid
+id translations_container
 id tv_about
 id tv_about_header
 id tv_app_title
 id tv_arabic
 id tv_arabic_preview
-id tv_arabic_size_label
 id tv_ayah_count
 id tv_ayah_counter
 id tv_ayah_marker
@@ -220,6 +223,7 @@ id tv_bookmark_note
 id tv_bookmark_ref
 id tv_bookmark_surah
 id tv_company_name
+id tv_compare_translations
 id tv_copy
 id tv_developer_label
 id tv_download_edition
@@ -256,6 +260,7 @@ id tv_name_ar
 id tv_name_en
 id tv_no_results
 id tv_number
+id tv_page_content
 id tv_play
 id tv_progress_text
 id tv_progress_title
@@ -272,6 +277,7 @@ id tv_select_text
 id tv_share
 id tv_share_image
 id tv_sheet_title
+id tv_size
 id tv_streak
 id tv_streak_label
 id tv_surah_ayah_count
@@ -284,7 +290,6 @@ id tv_theme_header
 id tv_title
 id tv_today_label
 id tv_today_minutes
-id tv_trans_size_label
 id tv_translation
 id tv_type
 id tv_website
@@ -298,10 +303,12 @@ id tv_word_arabic
 id tv_word_index
 id tv_word_position
 id tv_word_translation
+id vp_hafiz
 id word_freq_container
 layout activity_language_setup
 layout activity_main
 layout bottom_sheet_ayah_actions
+layout bottom_sheet_compare_translations
 layout bottom_sheet_juz_selector
 layout bottom_sheet_surah_selector
 layout fragment_download
@@ -314,6 +321,7 @@ layout fragment_surah_index
 layout item_ayah_page
 layout item_bookmark
 layout item_download
+layout item_hafiz_page
 layout item_juz
 layout item_language_card
 layout item_library_edition

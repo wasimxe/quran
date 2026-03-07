@@ -1,6 +1,8 @@
 package com.tanxe.quran.ui.search;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -40,6 +42,8 @@ public class SearchFragment extends Fragment {
     private RecyclerView rvResults;
     private TextView tvResultCount, tvNoResults;
     private String searchFilter = "all";
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingSearch;
 
     @Nullable
     @Override
@@ -64,6 +68,7 @@ public class SearchFragment extends Fragment {
         tvNoResults = view.findViewById(R.id.tv_no_results);
 
         rvResults.setLayoutManager(new LinearLayoutManager(requireContext()));
+        rvResults.setHasFixedSize(true);
 
         // Filter chips
         ChipGroup filterChips = view.findViewById(R.id.search_filter_chips);
@@ -86,14 +91,16 @@ public class SearchFragment extends Fragment {
             return false;
         });
 
-        // Live search as user types (debounced)
+        // Live search as user types (debounced 300ms)
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override
             public void afterTextChanged(Editable s) {
+                if (pendingSearch != null) searchHandler.removeCallbacks(pendingSearch);
                 if (s.length() >= 3) {
-                    performSearch();
+                    pendingSearch = () -> performSearch();
+                    searchHandler.postDelayed(pendingSearch, 300);
                 }
             }
         });

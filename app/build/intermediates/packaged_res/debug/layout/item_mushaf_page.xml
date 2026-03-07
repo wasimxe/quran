@@ -5,7 +5,9 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp">
+    android:paddingVertical="12dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <!-- Surah header -->
     <TextView
@@ -50,7 +52,10 @@
         android:textDirection="rtl"
         android:textAlignment="viewStart"
         android:justificationMode="inter_word"
-        android:lineSpacingMultiplier="1.0"
+        android:lineSpacingMultiplier="1.6"
+        android:lineSpacingExtra="6dp"
+        android:includeFontPadding="true"
+        android:elegantTextHeight="true"
         android:padding="4dp" />
 
     <!-- Bottom divider -->

@@ -24,6 +24,7 @@ public class BookmarkAdapter extends RecyclerView.Adapter<BookmarkAdapter.ViewHo
     private final ThemeManager theme;
     private final OnBookmarkClick clickListener;
     private final OnBookmarkDelete deleteListener;
+    private final SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
 
     public interface OnBookmarkClick {
         void onClick(Bookmark bookmark);
@@ -53,7 +54,6 @@ public class BookmarkAdapter extends RecyclerView.Adapter<BookmarkAdapter.ViewHo
         holder.tvSurah.setText(bookmark.surahName);
         holder.tvRef.setText(bookmark.surahNumber + ":" + bookmark.ayahNumber);
 
-        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
         holder.tvNote.setText(sdf.format(new Date(bookmark.timestamp)));
 
         holder.tvSurah.setTextColor(theme.getPrimaryTextColor());

@@ -26,6 +26,15 @@ public interface WordByWordDao {
     @Query("DELETE FROM word_by_word WHERE language = :language")
     void deleteLanguage(String language);
 
+    @Query("SELECT COALESCE(SUM(LENGTH(arabicWord) + LENGTH(translation)), 0) FROM word_by_word WHERE language = :language")
+    long getLanguageTextSize(String language);
+
+    @Query("SELECT COUNT(DISTINCT surahNumber) FROM word_by_word WHERE language = :language")
+    int getDistinctSurahCount(String language);
+
+    @Query("SELECT DISTINCT surahNumber FROM word_by_word WHERE language = :language")
+    List<Integer> getDownloadedSurahs(String language);
+
     @Query("SELECT arabicWord, COUNT(*) as frequency FROM word_by_word WHERE language = :language GROUP BY arabicWord ORDER BY frequency DESC")
     List<WordFrequency> getWordFrequencies(String language);
 

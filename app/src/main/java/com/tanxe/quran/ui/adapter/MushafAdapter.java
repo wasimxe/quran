@@ -36,7 +36,7 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
 
     private final QuranRepository repository;
     private final ThemeManager theme;
-    private final Typeface arabicFont;
+    private Typeface arabicFont;
     private final ExecutorService executor;
     private float arabicFontSize;
 
@@ -51,6 +51,18 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
     private int highlightedSurah = -1;
     private int highlightedAyah = -1;
 
+    // Cache built spannable text per surah to avoid rebuilding on re-scroll
+    private final android.util.SparseArray<CachedSurahData> surahCache = new android.util.SparseArray<>();
+
+    private static class CachedSurahData {
+        final CharSequence spannableText;
+        final String headerText;
+        CachedSurahData(CharSequence text, String header) {
+            this.spannableText = text;
+            this.headerText = header;
+        }
+    }
+
     public MushafAdapter(QuranRepository repository, ThemeManager theme, Typeface arabicFont) {
         this.repository = repository;
         this.theme = theme;
@@ -58,6 +70,11 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
         this.executor = repository.getExecutor();
         this.arabicFontSize = repository.getArabicFontSize();
         setHasStableIds(true);
+    }
+
+    /** Clear the text cache (call on theme change) */
+    public void clearCache() {
+        surahCache.clear();
     }
 
     public void setInteractionListener(OnAyahInteractionListener listener) {
@@ -87,6 +104,11 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
 
     public float getArabicFontSize() { return arabicFontSize; }
 
+    public void setArabicFont(Typeface font) {
+        this.arabicFont = font;
+        clearCache();
+    }
+
     @Override
     public long getItemId(int position) { return position; }
 
@@ -108,7 +130,10 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
     public void onBindViewHolder(@NonNull MushafViewHolder holder, int position) {
         int surah = position + 1;
 
-        // Apply theme
+        // Stale-bind detection
+        final int generation = ++holder.bindGeneration;
+
+        // Apply theme immediately
         holder.container.setBackgroundColor(theme.getBackgroundColor());
         holder.tvSurahHeader.setTextColor(theme.getAccentColor());
         holder.tvBismillah.setTextColor(theme.getAccentColor());
@@ -116,29 +141,53 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
         holder.tvMushafText.setTextColor(theme.getArabicTextColor());
         if (arabicFont != null) holder.tvMushafText.setTypeface(arabicFont);
         holder.tvMushafText.setTextSize(arabicFontSize);
+        holder.tvMushafText.setElegantTextHeight(false);
+        holder.tvMushafText.setIncludeFontPadding(false);
+        holder.tvMushafText.setLineSpacing(0f, 0.78f);
         holder.tvMushafText.setTextIsSelectable(false);
         holder.dividerBottom.setBackgroundColor(theme.getDividerColor());
         holder.dividerTop.setBackgroundColor(theme.getDividerColor());
-
-        // Enable clickable spans
         holder.tvMushafText.setMovementMethod(LinkMovementMethod.getInstance());
-        holder.tvMushafText.setHighlightColor(0x00000000); // remove default highlight
+        holder.tvMushafText.setHighlightColor(0x00000000);
 
-        // Load all ayahs for this surah on background thread
+        // Bismillah visibility (known statically)
+        if (surah != 1 && surah != 9) {
+            holder.tvBismillah.setVisibility(View.VISIBLE);
+            holder.dividerTop.setVisibility(View.VISIBLE);
+        } else {
+            holder.tvBismillah.setVisibility(View.GONE);
+            holder.dividerTop.setVisibility(View.GONE);
+        }
+
+        // Check cache first — if available, bind immediately without async
+        CachedSurahData cached = surahCache.get(surah);
+        if (cached != null) {
+            holder.tvSurahHeader.setText(cached.headerText);
+            holder.tvMushafText.setText(cached.spannableText);
+            // Just invalidate to refresh highlight colors via updateDrawState
+            holder.tvMushafText.invalidate();
+            setupLongPress(holder, surah);
+            return;
+        }
+
+        // Load on background thread
         executor.execute(() -> {
+            if (holder.bindGeneration != generation) return;
+
             List<Ayah> ayahs = repository.getAyahsBySurah(surah);
-            if (ayahs == null || ayahs.isEmpty()) return;
+            if (ayahs == null || ayahs.isEmpty() || holder.bindGeneration != generation) return;
 
             // Build continuous text with clickable ayah spans
             SpannableStringBuilder sb = new SpannableStringBuilder();
             int accentColor = theme.getAccentColor();
             int activeColor = theme.getActiveAyahTextColor();
+            int normalColor = theme.getArabicTextColor();
+            String lang = repository.getLanguage();
 
             for (int i = 0; i < ayahs.size(); i++) {
                 Ayah ayah = ayahs.get(i);
                 String text = ayah.arabicText.replaceAll("[\\r\\n]+", " ").trim();
 
-                // Strip Bismillah from ayah 1 text for surahs that show separate Bismillah header
                 if (ayah.ayahNumber == 1 && surah != 1 && surah != 9) {
                     text = stripBismillah(text);
                 }
@@ -150,13 +199,11 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
                 final int ayahNum = ayah.ayahNumber;
                 final int surahNum = surah;
 
-                // Make ayah text clickable (tap + long press)
                 sb.setSpan(new ClickableSpan() {
                     @Override
                     public void onClick(@NonNull View widget) {
                         highlightedSurah = surahNum;
                         highlightedAyah = ayahNum;
-                        // Just invalidate to repaint spans — no setText/re-layout
                         widget.invalidate();
                         if (interactionListener != null) {
                             interactionListener.onAyahTapped(surahNum, ayahNum);
@@ -166,29 +213,25 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
                     @Override
                     public void updateDrawState(@NonNull TextPaint ds) {
                         ds.setUnderlineText(false);
-                        // Read highlight state live so it's always current
                         boolean active = (surahNum == highlightedSurah && ayahNum == highlightedAyah);
-                        ds.setColor(active ? activeColor : theme.getArabicTextColor());
+                        ds.setColor(active ? activeColor : normalColor);
                     }
                 }, ayahTextStart, ayahTextEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
-                // Add ayah number marker: ﴿123﴾
                 String marker = " \uFD3F" + ayah.ayahNumber + "\uFD3E ";
                 int markerStart = sb.length();
                 sb.append(marker);
                 int markerEnd = sb.length();
-
                 sb.setSpan(new RelativeSizeSpan(0.6f), markerStart, markerEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 sb.setSpan(new ForegroundColorSpan(accentColor), markerStart, markerEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
-                // Ruku end divider with surah & juz ruku numbers
                 if (RukuData.isRukuEnd(surah, ayah.ayahNumber)) {
                     int surahRuku = RukuData.getSurahRukuNumber(surah, ayah.ayahNumber);
                     int juzRuku = RukuData.getJuzRukuNumber(surah, ayah.ayahNumber);
-                    String lang = repository.getLanguage();
-                    String ruku = Localization.get(lang, Localization.RUKU);
-                    String surahL = Localization.get(lang, Localization.SURAH);
-                    String juzL = Localization.get(lang, Localization.JUZ);
+                    String[] labels = getRukuLabels(lang);
+                    String ruku = labels[0];
+                    String surahL = labels[1];
+                    String juzL = labels[2];
                     String rukuLine = "\n\u2500\u2500\u2500  \u06DC " + surahL + " " + ruku + " " + surahRuku
                             + " \u2022 " + juzL + " " + ruku + " " + juzRuku
                             + "  \u2500\u2500\u2500";
@@ -204,34 +247,32 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
 
             String headerText = surah + ". " + ayahs.get(0).surahNameEn + " (" + ayahs.get(0).surahNameAr + ")";
 
-            // Long press on the whole text area for actions
+            // Cache the built text for this surah
+            surahCache.put(surah, new CachedSurahData(sb, headerText));
+
+            if (holder.bindGeneration != generation) return;
+
             holder.itemView.post(() -> {
+                if (holder.bindGeneration != generation) return;
                 holder.tvSurahHeader.setText(headerText);
-
-                if (surah != 1 && surah != 9) {
-                    holder.tvBismillah.setVisibility(View.VISIBLE);
-                    holder.dividerTop.setVisibility(View.VISIBLE);
-                } else {
-                    holder.tvBismillah.setVisibility(View.GONE);
-                    holder.dividerTop.setVisibility(View.GONE);
-                }
-
                 holder.tvMushafText.setText(sb);
-
-                // Long press on text → use highlighted ayah or default to ayah 1
-                holder.tvMushafText.setOnLongClickListener(v -> {
-                    int targetAyah = (highlightedSurah == surah && highlightedAyah > 0) ? highlightedAyah : 1;
-                    if (interactionListener != null) {
-                        interactionListener.onAyahLongPressed(surah, targetAyah);
-                    }
-                    return true;
-                });
+                setupLongPress(holder, surah);
             });
         });
     }
 
+    private void setupLongPress(MushafViewHolder holder, int surah) {
+        holder.tvMushafText.setOnLongClickListener(v -> {
+            int targetAyah = (highlightedSurah == surah && highlightedAyah > 0) ? highlightedAyah : 1;
+            if (interactionListener != null) {
+                interactionListener.onAyahLongPressed(surah, targetAyah);
+            }
+            return true;
+        });
+    }
+
     /** Strip the Bismillah prefix from ayah 1 text to avoid duplication */
-    private static String stripBismillah(String text) {
+    public static String stripBismillah(String text) {
         // Strip all diacritics and normalize alef variants to plain alef for comparison
         String normalized = text
                 .replaceAll("[\\u064B-\\u0652\\u0670\\u06D6-\\u06ED]", "") // diacritics
@@ -285,6 +326,7 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
         View container;
         TextView tvSurahHeader, tvBismillah, tvMushafText;
         View dividerTop, dividerBottom;
+        volatile int bindGeneration;
 
         MushafViewHolder(@NonNull View itemView) {
             super(itemView);

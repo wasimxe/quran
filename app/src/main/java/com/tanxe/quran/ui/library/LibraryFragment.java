@@ -55,7 +55,7 @@ public class LibraryFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         repository = QuranRepository.getInstance(requireContext());
         theme = ThemeManager.getInstance(requireContext());
-        dm = new DownloadManager(requireContext());
+        dm = DownloadManager.getInstance(requireContext());
 
         rvEditions = view.findViewById(R.id.rv_editions);
         rvEditions.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -102,6 +102,12 @@ public class LibraryFragment extends Fragment {
                     case 2: currentCategory = "wbw"; break;
                     case 3: currentCategory = "reciter"; break;
                 }
+                // Reciters are language-independent — temporarily bypass language filter
+                if ("reciter".equals(currentCategory)) {
+                    adapter.filterByLanguage("all");
+                } else {
+                    adapter.filterByLanguage(currentLanguageFilter);
+                }
                 loadEditions();
             }
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
@@ -135,14 +141,26 @@ public class LibraryFragment extends Fragment {
             chip.setText(lang.equals("All") ? allLabel : lang.toUpperCase());
             chip.setCheckable(true);
             chip.setChecked("All".equals(lang));
-            chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (isChecked) {
-                    currentLanguageFilter = "All".equals(lang) ? "all" : lang;
-                    adapter.filterByLanguage(currentLanguageFilter);
-                }
-            });
+            chip.setTag(lang);
             languageChips.addView(chip);
         }
+        languageChips.setSelectionRequired(true);
+        languageChips.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds.isEmpty()) {
+                // Should not happen with selectionRequired, but fallback to "all"
+                currentLanguageFilter = "all";
+            } else {
+                View checked = group.findViewById(checkedIds.get(0));
+                if (checked instanceof Chip) {
+                    String lang = (String) checked.getTag();
+                    currentLanguageFilter = "All".equals(lang) ? "all" : lang;
+                }
+            }
+            // Reciters are language-independent — don't apply language filter
+            if (!"reciter".equals(currentCategory)) {
+                adapter.filterByLanguage(currentLanguageFilter);
+            }
+        });
     }
 
     private void loadEditions() {
@@ -155,8 +173,40 @@ public class LibraryFragment extends Fragment {
                 editions = repository.getEditionsByType("tafseer");
                 if (editions == null) editions = new java.util.ArrayList<>();
                 mergeQuranComTafseers(editions);
+                // Compute sizes and detect incomplete downloads
+                for (EditionInfo e : editions) {
+                    int surahCount = repository.getTafseerSurahCount(e.identifier);
+                    int ayahCount = repository.getTafseerCount(e.identifier);
+                    if (surahCount >= 114) {
+                        e.isDownloaded = true;
+                        long size = repository.getTafseerTextSize(e.identifier);
+                        e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs";
+                    } else if (surahCount > 0) {
+                        e.isDownloaded = false;
+                        e.downloadProgress = 0;
+                        long size = repository.getTafseerTextSize(e.identifier);
+                        e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs (incomplete)";
+                    }
+                }
             } else {
                 editions = repository.getEditionsByType(currentCategory);
+                // Compute sizes and detect incomplete downloads
+                if (editions != null) {
+                    for (EditionInfo e : editions) {
+                        int surahCount = repository.getTranslationSurahCount(e.identifier);
+                        int ayahCount = repository.getTranslationCount(e.identifier);
+                        if (surahCount >= 114) {
+                            e.isDownloaded = true;
+                            long size = repository.getTranslationTextSize(e.identifier);
+                            e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs";
+                        } else if (surahCount > 0) {
+                            e.isDownloaded = false;
+                            e.downloadProgress = 0;
+                            long size = repository.getTranslationTextSize(e.identifier);
+                            e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs (incomplete)";
+                        }
+                    }
+                }
             }
 
             if (getActivity() != null) {
@@ -212,15 +262,12 @@ public class LibraryFragment extends Fragment {
             {"qc.ku.rebar", "Rebar Kurdish Tafsir", "ku", "Kurdish", "804"},
         };
 
-        List<String> downloadedTafseers = repository.getAvailableTafseers();
-        java.util.Set<String> downloadedSet = new java.util.HashSet<>();
-        if (downloadedTafseers != null) downloadedSet.addAll(downloadedTafseers);
-
         for (String[] t : qcTafseers) {
             if (!existing.contains(t[0])) {
                 EditionInfo ei = new EditionInfo(t[0], t[1], t[2], t[3], "tafseer",
                         "ar".equals(t[2]) || "ur".equals(t[2]) || "fa".equals(t[2]) || "ku".equals(t[2]) ? "rtl" : "ltr");
-                ei.isDownloaded = downloadedSet.contains(t[0]);
+                int surahCount = repository.getTafseerSurahCount(t[0]);
+                ei.isDownloaded = surahCount >= 114;
                 editions.add(ei);
             }
         }
@@ -229,20 +276,92 @@ public class LibraryFragment extends Fragment {
     private void loadReciters() {
         repository.getExecutor().execute(() -> {
             List<ReciterInfo> reciters = repository.getAllReciters();
-            if (getActivity() != null && reciters != null) {
-                requireActivity().runOnUiThread(() -> {
-                    // Convert reciters to EditionInfo for display
-                    java.util.ArrayList<EditionInfo> reciterEditions = new java.util.ArrayList<>();
-                    for (ReciterInfo r : reciters) {
-                        EditionInfo ei = new EditionInfo(r.identifier, r.name, "ar",
-                                r.style, "reciter", "rtl");
-                        ei.isDownloaded = r.isDownloaded;
-                        reciterEditions.add(ei);
+            if (getActivity() == null || reciters == null) return;
+
+            // Convert reciters to EditionInfo and compute audio sizes
+            java.util.ArrayList<EditionInfo> reciterEditions = new java.util.ArrayList<>();
+            java.io.File audioRoot = new java.io.File(requireContext().getFilesDir(), "audio");
+            for (ReciterInfo r : reciters) {
+                EditionInfo ei = new EditionInfo(r.identifier, r.name, "ar",
+                        r.style, "reciter", "rtl");
+                // Check actual files on disk
+                java.io.File reciterDir = new java.io.File(audioRoot, r.subfolder);
+                if (reciterDir.exists()) {
+                    java.io.File[] files = reciterDir.listFiles();
+                    if (files != null && files.length > 0) {
+                        long totalBytes = 0;
+                        for (java.io.File f : files) totalBytes += f.length();
+                        ei.isDownloaded = files.length >= 6236;
+                        ei.sizeText = formatSize(totalBytes) + " (" + files.length + " files)";
+                    } else {
+                        ei.isDownloaded = false;
                     }
-                    adapter.setEditions(reciterEditions);
-                    updateActiveIdentifier();
-                    tvEmpty.setVisibility(reciterEditions.isEmpty() ? View.VISIBLE : View.GONE);
-                    rvEditions.setVisibility(reciterEditions.isEmpty() ? View.GONE : View.VISIBLE);
+                } else {
+                    ei.isDownloaded = r.isDownloaded;
+                }
+                reciterEditions.add(ei);
+            }
+
+            requireActivity().runOnUiThread(() -> {
+                adapter.setEditions(reciterEditions);
+                updateActiveIdentifier();
+                tvEmpty.setVisibility(reciterEditions.isEmpty() ? View.VISIBLE : View.GONE);
+                rvEditions.setVisibility(reciterEditions.isEmpty() ? View.GONE : View.VISIBLE);
+            });
+        });
+    }
+
+    private static String formatSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        if (bytes < 1024L * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
+        return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
+    }
+
+    private void computeReciterSize(EditionInfo e) {
+        repository.getExecutor().execute(() -> {
+            java.io.File dir = new java.io.File(requireContext().getFilesDir(), "audio/" + e.identifier);
+            if (dir.exists()) {
+                java.io.File[] files = dir.listFiles();
+                if (files != null && files.length > 0) {
+                    long totalBytes = 0;
+                    for (java.io.File f : files) totalBytes += f.length();
+                    String size = formatSize(totalBytes) + " (" + files.length + " files)";
+                    if (getActivity() != null) {
+                        final String finalSize = size;
+                        requireActivity().runOnUiThread(() -> {
+                            e.sizeText = finalSize;
+                            adapter.updateByIdentifier(e.identifier);
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    private void computeEditionSize(EditionInfo e) {
+        repository.getExecutor().execute(() -> {
+            String sizeText = null;
+            if ("wbw".equals(e.type)) {
+                String lang = e.identifier.replace("wbw.", "");
+                int count = repository.getWbwWordCount(lang);
+                long size = repository.getWbwTextSize(lang);
+                int surahCount = repository.getWbwSurahCount(lang);
+                sizeText = formatSize(size) + " · " + count + " words · " + surahCount + "/114 surahs";
+            } else if ("tafseer".equals(e.type)) {
+                int count = repository.getTafseerCount(e.identifier);
+                long size = repository.getTafseerTextSize(e.identifier);
+                sizeText = formatSize(size) + " · " + count + "/6236 ayahs";
+            } else if ("translation".equals(e.type)) {
+                int count = repository.getTranslationCount(e.identifier);
+                long size = repository.getTranslationTextSize(e.identifier);
+                sizeText = formatSize(size) + " · " + count + "/6236 ayahs";
+            }
+            if (sizeText != null && getActivity() != null) {
+                final String finalSize = sizeText;
+                requireActivity().runOnUiThread(() -> {
+                    e.sizeText = finalSize;
+                    adapter.updateByIdentifier(e.identifier);
                 });
             }
         });
@@ -300,12 +419,25 @@ public class LibraryFragment extends Fragment {
                     lang[1] + " Word by Word", lang[0], lang[1], "wbw", lang[2]));
         }
 
-        // Check download status
+        // Check download status, detect incomplete, and compute sizes
         repository.getExecutor().execute(() -> {
-            List<String> downloaded = repository.getAvailableWbwLanguages();
             for (EditionInfo e : wbwEditions) {
                 String lang = e.identifier.replace("wbw.", "");
-                e.isDownloaded = downloaded != null && downloaded.contains(lang);
+                int surahCount = repository.getWbwSurahCount(lang);
+                if (surahCount >= 114) {
+                    e.isDownloaded = true;
+                    int count = repository.getWbwWordCount(lang);
+                    long size = repository.getWbwTextSize(lang);
+                    e.sizeText = formatSize(size) + " · " + count + " words · " + surahCount + "/114 surahs";
+                } else if (surahCount > 0) {
+                    e.isDownloaded = false;
+                    e.downloadProgress = 0;
+                    int count = repository.getWbwWordCount(lang);
+                    long size = repository.getWbwTextSize(lang);
+                    e.sizeText = formatSize(size) + " · " + count + " words · " + surahCount + "/114 surahs (incomplete)";
+                } else {
+                    e.isDownloaded = false;
+                }
             }
             if (getActivity() != null) {
                 requireActivity().runOnUiThread(() -> {
@@ -329,77 +461,74 @@ public class LibraryFragment extends Fragment {
         });
     }
 
-    private void startDownload(EditionInfo edition, int position) {
-        if ("wbw".equals(currentCategory)) {
-            String lang = edition.identifier.replace("wbw.", "");
-            edition.downloadProgress = 1;
-            adapter.updateItem(position);
-            dm.downloadWordByWord(lang, status -> {
-                if (getActivity() != null) {
-                    requireActivity().runOnUiThread(() -> {
-                        if (status.startsWith("\u2713")) {
-                            edition.isDownloaded = true;
-                            edition.downloadProgress = 100;
-                        } else if (status.contains("/114")) {
-                            try {
-                                String num = status.replaceAll(".*?(\\d+)/114.*", "$1");
-                                edition.downloadProgress = (int) (Integer.parseInt(num) * 100.0 / 114);
-                            } catch (Exception ignored) {}
-                        }
-                        adapter.updateItem(position);
-                    });
-                }
-            });
-        } else if ("reciter".equals(currentCategory)) {
-            Toast.makeText(requireContext(), "Select this reciter in Reading mode to stream audio", Toast.LENGTH_SHORT).show();
-            repository.saveSelectedReciter(edition.identifier);
-        } else {
-            String language = edition.language;
-            edition.downloadProgress = 1;
-            adapter.updateItem(position);
-
-            if ("translation".equals(edition.type)) {
-                dm.downloadTranslation(edition.identifier, language, status -> {
-                    if (getActivity() != null) {
-                        requireActivity().runOnUiThread(() -> {
-                            if (status.startsWith("\u2713")) {
-                                edition.isDownloaded = true;
-                                edition.downloadProgress = 100;
-                            } else if (status.contains("/114")) {
-                                try {
-                                    String num = status.replaceAll(".*?(\\d+)/114.*", "$1");
-                                    edition.downloadProgress = (int) (Integer.parseInt(num) * 100.0 / 114);
-                                } catch (Exception ignored) {}
-                            }
-                            adapter.updateItem(position);
-                        });
-                    }
-                });
-            } else {
-                // Determine if this is a quran.com tafseer or alquran.cloud
-                DownloadManager.StatusCallback tafseerCallback = status -> {
-                    if (getActivity() != null) {
-                        requireActivity().runOnUiThread(() -> {
-                            if (status.startsWith("\u2713")) {
-                                edition.isDownloaded = true;
-                                edition.downloadProgress = 100;
-                            } else if (status.contains("/114")) {
-                                try {
-                                    String num = status.replaceAll(".*?(\\d+)/114.*", "$1");
-                                    edition.downloadProgress = (int) (Integer.parseInt(num) * 100.0 / 114);
-                                } catch (Exception ignored) {}
-                            }
-                            adapter.updateItem(position);
-                        });
-                    }
-                };
-
-                int qcResourceId = getQuranComResourceId(edition.identifier);
-                if (qcResourceId > 0) {
-                    dm.downloadTafseerFromQuranCom(edition.identifier, qcResourceId, language, tafseerCallback);
+    /** Update download progress on the current adapter edition object (survives tab switches) */
+    private void updateDownloadProgress(String identifier, String status) {
+        if (getActivity() == null) return;
+        requireActivity().runOnUiThread(() -> {
+            EditionInfo e = adapter.findByIdentifier(identifier);
+            if (e == null) return;
+            if (status.startsWith("\u2713")) {
+                e.isDownloaded = true;
+                e.downloadProgress = 100;
+                // Compute final size
+                if ("reciter".equals(e.type)) {
+                    computeReciterSize(e);
                 } else {
-                    dm.downloadTafseer(edition.identifier, language, tafseerCallback);
+                    computeEditionSize(e);
                 }
+            } else if (status.startsWith("Incomplete")) {
+                // Download finished but not all surahs — show as not downloaded so user can resume
+                e.isDownloaded = false;
+                e.downloadProgress = 0;
+                // Extract size info from status message
+                e.sizeText = status.replace("Incomplete: ", "").replace(" — tap download to resume", "").replace(" — tap download to retry", "");
+            } else if (status.contains("(") && status.contains("%)")) {
+                try {
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("\\((\\d+)%\\)").matcher(status);
+                    if (m.find()) {
+                        e.downloadProgress = Math.max(1, Integer.parseInt(m.group(1)));
+                    }
+                } catch (Exception ignored) {}
+                // Extract size info after the percentage (e.g. "123/6236 (5%) 45.2 MB")
+                try {
+                    java.util.regex.Matcher sm = java.util.regex.Pattern
+                            .compile("\\d+%\\)\\s+(.+)$").matcher(status);
+                    if (sm.find()) {
+                        e.sizeText = sm.group(1);
+                    }
+                } catch (Exception ignored) {}
+            } else if (status.contains("/114")) {
+                try {
+                    String num = status.replaceAll(".*?(\\d+)/114.*", "$1");
+                    e.downloadProgress = Math.max(1, (int) (Integer.parseInt(num) * 100.0 / 114));
+                } catch (Exception ignored) {}
+            }
+            adapter.updateByIdentifier(identifier);
+        });
+    }
+
+    private void startDownload(EditionInfo edition, int position) {
+        final String id = edition.identifier;
+        edition.downloadProgress = 1;
+        adapter.updateItem(position);
+
+        if ("wbw".equals(currentCategory)) {
+            String lang = id.replace("wbw.", "");
+            dm.downloadWordByWord(lang, status -> updateDownloadProgress(id, status));
+        } else if ("reciter".equals(currentCategory)) {
+            repository.saveSelectedReciter(id);
+            dm.downloadFullQuranAudio(id, status -> updateDownloadProgress(id, status));
+        } else if ("translation".equals(edition.type)) {
+            dm.downloadTranslation(id, edition.language, status -> updateDownloadProgress(id, status));
+        } else {
+            int qcResourceId = getQuranComResourceId(id);
+            if (qcResourceId > 0) {
+                dm.downloadTafseerFromQuranCom(id, qcResourceId, edition.language,
+                        status -> updateDownloadProgress(id, status));
+            } else {
+                dm.downloadTafseer(id, edition.language,
+                        status -> updateDownloadProgress(id, status));
             }
         }
     }
@@ -547,9 +676,16 @@ public class LibraryFragment extends Fragment {
         if (etSearch != null) etSearch.setHint(Localization.get(lang, Localization.SEARCH_LIBRARY_HINT));
     }
 
+    private boolean initialLoadDone = false;
+
     @Override
     public void onResume() {
         super.onResume();
-        loadEditions();
+        // Skip redundant reload on first show — onViewCreated already called loadEditions()
+        if (initialLoadDone) {
+            loadEditions();
+        } else {
+            initialLoadDone = true;
+        }
     }
 }

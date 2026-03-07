@@ -20,6 +20,9 @@ public class EditionInfo {
     public int downloadProgress;
     public long downloadedAt;
 
+    @Ignore
+    public String sizeText; // transient - for UI display only (e.g. "145 MB")
+
     public EditionInfo() {}
 
     @Ignore

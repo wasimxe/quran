@@ -160,6 +160,58 @@ public final class TranslationDao_Impl implements TranslationDao {
   }
 
   @Override
+  public List<Translation> getTranslationsBySurah(final int surah, final String edition) {
+    final String _sql = "SELECT * FROM translations WHERE surahNumber = ? AND edition = ? ORDER BY ayahNumber";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 2);
+    int _argIndex = 1;
+    _statement.bindLong(_argIndex, surah);
+    _argIndex = 2;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+      final int _cursorIndexOfSurahNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "surahNumber");
+      final int _cursorIndexOfAyahNumber = CursorUtil.getColumnIndexOrThrow(_cursor, "ayahNumber");
+      final int _cursorIndexOfText = CursorUtil.getColumnIndexOrThrow(_cursor, "text");
+      final int _cursorIndexOfEdition = CursorUtil.getColumnIndexOrThrow(_cursor, "edition");
+      final int _cursorIndexOfLanguage = CursorUtil.getColumnIndexOrThrow(_cursor, "language");
+      final List<Translation> _result = new ArrayList<Translation>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final Translation _item;
+        _item = new Translation();
+        _item.id = _cursor.getInt(_cursorIndexOfId);
+        _item.surahNumber = _cursor.getInt(_cursorIndexOfSurahNumber);
+        _item.ayahNumber = _cursor.getInt(_cursorIndexOfAyahNumber);
+        if (_cursor.isNull(_cursorIndexOfText)) {
+          _item.text = null;
+        } else {
+          _item.text = _cursor.getString(_cursorIndexOfText);
+        }
+        if (_cursor.isNull(_cursorIndexOfEdition)) {
+          _item.edition = null;
+        } else {
+          _item.edition = _cursor.getString(_cursorIndexOfEdition);
+        }
+        if (_cursor.isNull(_cursorIndexOfLanguage)) {
+          _item.language = null;
+        } else {
+          _item.language = _cursor.getString(_cursorIndexOfLanguage);
+        }
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
   public List<String> getAvailableEditions() {
     final String _sql = "SELECT DISTINCT edition FROM translations";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
@@ -272,6 +324,58 @@ public final class TranslationDao_Impl implements TranslationDao {
   @Override
   public int getEditionCount(final String edition) {
     final String _sql = "SELECT COUNT(*) FROM translations WHERE edition = ?";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _result;
+      if (_cursor.moveToFirst()) {
+        _result = _cursor.getInt(0);
+      } else {
+        _result = 0;
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public long getEditionTextSize(final String edition) {
+    final String _sql = "SELECT COALESCE(SUM(LENGTH(text)), 0) FROM translations WHERE edition = ?";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final long _result;
+      if (_cursor.moveToFirst()) {
+        _result = _cursor.getLong(0);
+      } else {
+        _result = 0L;
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public int getDistinctSurahCount(final String edition) {
+    final String _sql = "SELECT COUNT(DISTINCT surahNumber) FROM translations WHERE edition = ?";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
     int _argIndex = 1;
     if (edition == null) {

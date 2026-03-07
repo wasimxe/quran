@@ -165,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
     private void ensureWbwDownloaded() {
         QuranRepository repo = QuranRepository.getInstance(this);
         repo.saveSelectedWbwLanguage("ur");
-        DownloadManager dm = new DownloadManager(this);
+        DownloadManager dm = DownloadManager.getInstance(this);
 
         repo.getExecutor().execute(() -> {
             // Fetch edition catalog if not cached yet
