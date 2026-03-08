@@ -63,8 +63,27 @@ public class SettingsFragment extends Fragment {
         Spinner spinnerLang = view.findViewById(R.id.spinner_language);
         String[] langs = {"English", "\u0627\u0631\u062f\u0648 (Urdu)", "\u0627\u0644\u0639\u0631\u0628\u064a\u0629 (Arabic)", "T\u00fcrk\u00e7e (Turkish)"};
         String[] langCodes = {"en", "ur", "ar", "tr"};
-        spinnerLang.setAdapter(new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_dropdown_item, langs));
+        ArrayAdapter<String> langAdapter = new ArrayAdapter<String>(requireContext(),
+                android.R.layout.simple_spinner_dropdown_item, langs) {
+            @NonNull
+            @Override
+            public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+                View v = super.getView(position, convertView, parent);
+                if (v instanceof TextView) ((TextView) v).setTextColor(theme.getAccentColor());
+                return v;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, @NonNull ViewGroup parent) {
+                View v = super.getDropDownView(position, convertView, parent);
+                if (v instanceof TextView) {
+                    ((TextView) v).setTextColor(theme.getPrimaryTextColor());
+                    v.setBackgroundColor(theme.getSurfaceColor());
+                }
+                return v;
+            }
+        };
+        spinnerLang.setAdapter(langAdapter);
 
         String currentLang = repository.getLanguage();
         for (int i = 0; i < langCodes.length; i++) {

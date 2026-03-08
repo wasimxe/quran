@@ -40,4 +40,7 @@ public interface TranslationDao {
 
     @Query("SELECT COUNT(DISTINCT surahNumber) FROM translations WHERE edition = :edition")
     int getDistinctSurahCount(String edition);
+
+    @Query("SELECT edition, COUNT(*) as ayahCount, COUNT(DISTINCT surahNumber) as surahCount, COALESCE(SUM(LENGTH(text)), 0) as textSize FROM translations GROUP BY edition")
+    List<com.tanxe.quran.data.entity.EditionStats> getAllEditionStats();
 }

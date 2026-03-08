@@ -73,7 +73,7 @@ public class SurahSelectorBottomSheet extends BottomSheetDialogFragment {
                 listener.onSurahSelected(surahNumber);
             }
             dismiss();
-        });
+        }, lang);
         rv.setAdapter(adapter);
 
         EditText search = view.findViewById(R.id.et_surah_search);

@@ -176,15 +176,15 @@ public class SearchFragment extends Fragment {
         });
     }
 
-    /** Called externally to search a word and show results (e.g. from Learn mode) */
+    /** Called externally to search a word and show results (e.g. from Learn mode or compare sheet) */
     public void searchFor(String query) {
         if (etSearch == null) return;
-        // Set the filter to Arabic since learn mode searches Arabic words
-        searchFilter = "arabic";
+        // Search across all categories to find the best match
+        searchFilter = "all";
         // Update chip selection
         if (getView() != null) {
             ChipGroup filterChips = getView().findViewById(R.id.search_filter_chips);
-            filterChips.check(R.id.chip_search_arabic);
+            filterChips.check(R.id.chip_search_all);
         }
         etSearch.setText(query);
         etSearch.setSelection(query.length());
@@ -198,6 +198,40 @@ public class SearchFragment extends Fragment {
         container.setBackgroundColor(theme.getBackgroundColor());
         tvResultCount.setTextColor(theme.getSecondaryTextColor());
         tvNoResults.setTextColor(theme.getSecondaryTextColor());
+
+        // Search input theming
+        etSearch.setTextColor(theme.getPrimaryTextColor());
+        etSearch.setHintTextColor(theme.getSecondaryTextColor());
+        com.google.android.material.textfield.TextInputLayout inputLayout =
+                getView().findViewById(R.id.search_input_layout);
+        if (inputLayout != null) {
+            inputLayout.setBoxStrokeColor(theme.getAccentColor());
+            inputLayout.setHintTextColor(android.content.res.ColorStateList.valueOf(theme.getAccentColor()));
+            if (inputLayout.getStartIconDrawable() != null) {
+                inputLayout.setStartIconTintList(android.content.res.ColorStateList.valueOf(theme.getAccentColor()));
+            }
+        }
+
+        // Filter chips theming
+        ChipGroup filterChips = getView().findViewById(R.id.search_filter_chips);
+        int accentColor = theme.getAccentColor();
+        int chipTextColor = theme.getPrimaryTextColor();
+        int chipBg = theme.getModePillColor();
+        android.content.res.ColorStateList chipBgStates = new android.content.res.ColorStateList(
+                new int[][]{ new int[]{android.R.attr.state_checked}, new int[]{} },
+                new int[]{accentColor, chipBg});
+        android.content.res.ColorStateList chipTextStates = new android.content.res.ColorStateList(
+                new int[][]{ new int[]{android.R.attr.state_checked}, new int[]{} },
+                new int[]{0xFFFFFFFF, chipTextColor});
+        for (int i = 0; i < filterChips.getChildCount(); i++) {
+            View child = filterChips.getChildAt(i);
+            if (child instanceof Chip) {
+                ((Chip) child).setChipBackgroundColor(chipBgStates);
+                ((Chip) child).setTextColor(chipTextStates);
+                ((Chip) child).setChipStrokeWidth(0f);
+            }
+        }
+
         localizeLabels();
     }
 

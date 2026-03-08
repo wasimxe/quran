@@ -102,32 +102,6 @@
                 android:background="?attr/selectableItemBackground" />
 
             <TextView
-                android:id="@+id/btn_mode_translation"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="Translation"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:paddingVertical="6dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="?attr/selectableItemBackground" />
-
-            <TextView
-                android:id="@+id/btn_mode_tafseer"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="Tafseer"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:paddingVertical="6dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="?attr/selectableItemBackground" />
-
-            <TextView
                 android:id="@+id/btn_mode_wbw"
                 android:layout_width="0dp"
                 android:layout_weight="1"
@@ -153,35 +127,8 @@
                 android:focusable="true"
                 android:background="?attr/selectableItemBackground" />
 
-            <TextView
-                android:id="@+id/btn_mode_learn"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="Learn"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:paddingVertical="6dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="?attr/selectableItemBackground" />
         </LinearLayout>
     </LinearLayout>
-
-    <!-- Source edition selector (for translation/tafseer/wbw switching) -->
-    <Spinner
-        android:id="@+id/spinner_source"
-        android:layout_width="0dp"
-        android:layout_height="36dp"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="2dp"
-        android:background="@drawable/bg_source_selector"
-        android:dropDownWidth="match_parent"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/header_bar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Continuous scrolling ayah list -->
     <androidx.recyclerview.widget.RecyclerView
@@ -189,7 +136,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        app:layout_constraintTop_toBottomOf="@id/spinner_source"
+        app:layout_constraintTop_toBottomOf="@id/header_bar"
         app:layout_constraintBottom_toTopOf="@id/floating_toolbar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -200,7 +147,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/spinner_source"
+        app:layout_constraintTop_toBottomOf="@id/header_bar"
         app:layout_constraintBottom_toTopOf="@id/floating_toolbar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -396,16 +343,15 @@
     <!-- Floating exit button (visible only in fullscreen) -->
     <ImageButton
         android:id="@+id/btn_exit_fullscreen"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
         android:src="@drawable/ic_fullscreen_exit"
         android:background="@drawable/bg_floating_toolbar"
         android:elevation="6dp"
         android:scaleType="centerInside"
-        android:padding="8dp"
-        android:alpha="0.7"
+        android:padding="10dp"
         android:visibility="gone"
-        android:contentDescription="Exit Full Screen"
+        android:contentDescription="Exit Fullscreen"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginEnd="12dp"

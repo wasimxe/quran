@@ -9,6 +9,8 @@ import androidx.room.SharedSQLiteStatement;
 import androidx.room.util.CursorUtil;
 import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
+import com.tanxe.quran.data.entity.EditionStats;
+import com.tanxe.quran.data.entity.SurahAyahCount;
 import com.tanxe.quran.data.entity.Tafseer;
 import java.lang.Class;
 import java.lang.Integer;
@@ -420,6 +422,68 @@ public final class TafseerDao_Impl implements TafseerDao {
         } else {
           _item = _cursor.getInt(0);
         }
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public List<EditionStats> getAllEditionStats() {
+    final String _sql = "SELECT edition, COUNT(*) as ayahCount, COUNT(DISTINCT surahNumber) as surahCount, COALESCE(SUM(LENGTH(text)), 0) as textSize FROM tafseers GROUP BY edition";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfEdition = 0;
+      final int _cursorIndexOfAyahCount = 1;
+      final int _cursorIndexOfSurahCount = 2;
+      final int _cursorIndexOfTextSize = 3;
+      final List<EditionStats> _result = new ArrayList<EditionStats>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final EditionStats _item;
+        _item = new EditionStats();
+        if (_cursor.isNull(_cursorIndexOfEdition)) {
+          _item.edition = null;
+        } else {
+          _item.edition = _cursor.getString(_cursorIndexOfEdition);
+        }
+        _item.ayahCount = _cursor.getInt(_cursorIndexOfAyahCount);
+        _item.surahCount = _cursor.getInt(_cursorIndexOfSurahCount);
+        _item.textSize = _cursor.getLong(_cursorIndexOfTextSize);
+        _result.add(_item);
+      }
+      return _result;
+    } finally {
+      _cursor.close();
+      _statement.release();
+    }
+  }
+
+  @Override
+  public List<SurahAyahCount> getAyahCountsBySurah(final String edition) {
+    final String _sql = "SELECT surahNumber, COUNT(*) as cnt FROM tafseers WHERE edition = ? GROUP BY surahNumber";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 1);
+    int _argIndex = 1;
+    if (edition == null) {
+      _statement.bindNull(_argIndex);
+    } else {
+      _statement.bindString(_argIndex, edition);
+    }
+    __db.assertNotSuspendingTransaction();
+    final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+    try {
+      final int _cursorIndexOfSurahNumber = 0;
+      final int _cursorIndexOfCnt = 1;
+      final List<SurahAyahCount> _result = new ArrayList<SurahAyahCount>(_cursor.getCount());
+      while (_cursor.moveToNext()) {
+        final SurahAyahCount _item;
+        _item = new SurahAyahCount();
+        _item.surahNumber = _cursor.getInt(_cursorIndexOfSurahNumber);
+        _item.cnt = _cursor.getInt(_cursorIndexOfCnt);
         _result.add(_item);
       }
       return _result;

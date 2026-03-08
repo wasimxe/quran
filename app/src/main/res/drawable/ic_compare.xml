@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Two overlapping document outlines — compare/swap icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M4,7h11v2H4V7zM4,11h11v2H4V11zM4,15h7v2H4V15z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M16,13l4,4l-4,4v-3H11v-2h5V13z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20,3l-4,-0l0,3l-5,0l0,2l5,0l0,3z"
+        android:alpha="0.5" />
+</vector>

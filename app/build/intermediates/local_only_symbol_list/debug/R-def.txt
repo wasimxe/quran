@@ -64,6 +64,7 @@ drawable ic_arrow_drop_down
 drawable ic_bookmark
 drawable ic_bookmark_filled
 drawable ic_check_circle
+drawable ic_compare
 drawable ic_delete
 drawable ic_download
 drawable ic_fullscreen
@@ -102,6 +103,7 @@ id action_select_text
 id action_share
 id action_share_image
 id ayah_page_container
+id bookmarks_container
 id bottom_navigation
 id btn_action
 id btn_bookmark
@@ -117,9 +119,6 @@ id btn_fullscreen
 id btn_know
 id btn_mode_arabic
 id btn_mode_hafiz
-id btn_mode_learn
-id btn_mode_tafseer
-id btn_mode_translation
 id btn_mode_wbw
 id btn_next
 id btn_next_word
@@ -127,10 +126,12 @@ id btn_play
 id btn_prev_word
 id btn_previous
 id btn_random
+id btn_reading_point
 id btn_repeat
 id btn_reset
 id btn_reveal
 id btn_search_word
+id btn_share
 id btn_speed
 id btn_word_toggle
 id card_amoled
@@ -175,11 +176,11 @@ id library_container
 id main_container
 id mode_toggle_container
 id mushaf_container
+id nav_learn
 id nav_library
 id nav_more
 id nav_read
 id nav_search
-id nav_surahs
 id progress_bar
 id progress_download
 id progress_learn
@@ -188,6 +189,7 @@ id row_email
 id row_website
 id row_whatsapp
 id rv_ayahs
+id rv_bookmarks
 id rv_downloads
 id rv_editions
 id rv_juz
@@ -205,7 +207,6 @@ id setup_container
 id sheet_container
 id spinner_language
 id spinner_scope
-id spinner_source
 id surah_index_container
 id surah_item_container
 id tab_category
@@ -226,6 +227,8 @@ id tv_bookmark
 id tv_bookmark_note
 id tv_bookmark_ref
 id tv_bookmark_surah
+id tv_bookmark_translation
+id tv_bookmarks_title
 id tv_company_name
 id tv_compare_translations
 id tv_copy
@@ -312,6 +315,7 @@ id word_freq_container
 layout activity_language_setup
 layout activity_main
 layout bottom_sheet_ayah_actions
+layout bottom_sheet_bookmarks
 layout bottom_sheet_compare_translations
 layout bottom_sheet_juz_selector
 layout bottom_sheet_surah_selector
@@ -438,6 +442,7 @@ string stop
 string streak
 string surah
 string surah_format
+string tab_learn
 string tab_library
 string tab_more
 string tab_read

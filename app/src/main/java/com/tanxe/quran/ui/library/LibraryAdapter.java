@@ -16,7 +16,9 @@ import com.tanxe.quran.data.entity.EditionInfo;
 import com.tanxe.quran.theme.ThemeManager;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHolder> {
 
@@ -32,6 +34,7 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
     private final ThemeManager theme;
     private final OnEditionAction listener;
     private String activeIdentifier = "";
+    private Set<String> activeIdentifiers = new HashSet<>();
     private String currentLanguageFilter = "all";
     private String currentQuery = "";
 
@@ -42,6 +45,11 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
 
     public void setActiveIdentifier(String identifier) {
         this.activeIdentifier = identifier != null ? identifier : "";
+        notifyDataSetChanged();
+    }
+
+    public void setActiveIdentifiers(Set<String> identifiers) {
+        this.activeIdentifiers = identifiers != null ? identifiers : new HashSet<>();
         notifyDataSetChanged();
     }
 
@@ -155,9 +163,9 @@ public class LibraryAdapter extends RecyclerView.Adapter<LibraryAdapter.ViewHold
 
         holder.container.setBackgroundColor(theme.getBackgroundColor());
 
-        // Show tick for active edition
+        // Show tick for active/selected edition (multi-select or single)
         boolean isActive = edition.isDownloaded && edition.identifier != null
-                && edition.identifier.equals(activeIdentifier);
+                && (edition.identifier.equals(activeIdentifier) || activeIdentifiers.contains(edition.identifier));
         holder.ivActiveTick.setVisibility(isActive ? View.VISIBLE : View.GONE);
         holder.ivActiveTick.setColorFilter(theme.getDownloadedColor());
 

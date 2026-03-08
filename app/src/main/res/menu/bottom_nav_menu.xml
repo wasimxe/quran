@@ -5,9 +5,9 @@
         android:icon="@drawable/ic_quran"
         android:title="@string/tab_read" />
     <item
-        android:id="@+id/nav_surahs"
-        android:icon="@drawable/ic_list"
-        android:title="@string/tab_surahs" />
+        android:id="@+id/nav_learn"
+        android:icon="@drawable/ic_learn"
+        android:title="@string/tab_learn" />
     <item
         android:id="@+id/nav_search"
         android:icon="@drawable/ic_search"

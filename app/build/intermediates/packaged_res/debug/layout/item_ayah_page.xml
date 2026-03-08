@@ -58,7 +58,7 @@
         android:elegantTextHeight="true"
         android:padding="8dp" />
 
-    <!-- Ayah number marker -->
+    <!-- Ayah number marker (compare icon appended inline in code) -->
     <TextView
         android:id="@+id/tv_ayah_marker"
         android:layout_width="wrap_content"
@@ -75,12 +75,9 @@
         android:textSize="18sp"
         android:layoutDirection="rtl"
         android:textDirection="anyRtl"
-        android:breakStrategy="high_quality"
-        android:justificationMode="inter_word"
+        android:breakStrategy="simple"
         android:lineSpacingMultiplier="1.0"
         android:lineSpacingExtra="0dp"
-        android:includeFontPadding="true"
-        android:elegantTextHeight="true"
         android:padding="8dp" />
 
     <!-- Ruku end marker -->
@@ -121,7 +118,7 @@
             android:textStyle="italic"
             android:layout_marginBottom="4dp" />
 
-        <!-- Tafseer/Extra translation text -->
+        <!-- Tafseer/Extra translation text — use simple break strategy for performance -->
         <TextView
             android:id="@+id/tv_extra_content"
             android:layout_width="match_parent"
@@ -129,12 +126,9 @@
             android:textSize="16sp"
             android:layoutDirection="rtl"
             android:textDirection="anyRtl"
-            android:breakStrategy="high_quality"
-            android:justificationMode="inter_word"
+            android:breakStrategy="simple"
             android:lineSpacingMultiplier="1.0"
             android:lineSpacingExtra="0dp"
-            android:includeFontPadding="true"
-            android:elegantTextHeight="true"
             android:padding="8dp" />
 
         <!-- Word by Word RecyclerView -->

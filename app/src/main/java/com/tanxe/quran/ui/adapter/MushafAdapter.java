@@ -143,6 +143,7 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
         holder.tvMushafText.setTextSize(arabicFontSize);
         holder.tvMushafText.setElegantTextHeight(true);
         holder.tvMushafText.setIncludeFontPadding(true);
+        // Non-selectable + null movement method = justified alignment preserved permanently
         holder.tvMushafText.setTextIsSelectable(false);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             holder.tvMushafText.setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
@@ -152,31 +153,61 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
         }
         holder.dividerBottom.setBackgroundColor(theme.getDividerColor());
         holder.dividerTop.setBackgroundColor(theme.getDividerColor());
-        // Use OnTouchListener instead of LinkMovementMethod — LMM breaks justification
         holder.tvMushafText.setMovementMethod(null);
         holder.tvMushafText.setHighlightColor(0x00000000);
+        holder.tvMushafText.setClickable(true);
+        holder.tvMushafText.setLongClickable(true);
+        // Tap = highlight + compare sheet; finger slide ignored; long press = compare sheet (all)
+        final float[] touchDown = new float[2];
+        final boolean[] touchSlid = {false};
+        final int touchSlop = android.view.ViewConfiguration.get(holder.tvMushafText.getContext()).getScaledTouchSlop();
         holder.tvMushafText.setOnTouchListener((v, event) -> {
-            if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
-                TextView tv = (TextView) v;
-                android.text.Layout layout = tv.getLayout();
-                if (layout != null) {
-                    int x = (int) event.getX() - tv.getTotalPaddingLeft() + tv.getScrollX();
-                    int y = (int) event.getY() - tv.getTotalPaddingTop() + tv.getScrollY();
-                    int line = layout.getLineForVertical(y);
-                    int offset = layout.getOffsetForHorizontal(line, x);
-                    CharSequence text = tv.getText();
-                    if (text instanceof android.text.Spanned) {
-                        android.text.style.ClickableSpan[] spans =
-                                ((android.text.Spanned) text).getSpans(offset, offset, android.text.style.ClickableSpan.class);
-                        if (spans.length > 0) {
-                            spans[0].onClick(tv);
-                            return true;
+            switch (event.getAction()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    touchDown[0] = event.getX();
+                    touchDown[1] = event.getY();
+                    touchSlid[0] = false;
+                    break;
+                case android.view.MotionEvent.ACTION_MOVE:
+                    if (!touchSlid[0]) {
+                        float mdx = event.getX() - touchDown[0];
+                        float mdy = event.getY() - touchDown[1];
+                        // Use larger threshold (touchSlop*4) so natural finger jitter
+                        // during genuine long press doesn't cancel it
+                        if (mdx * mdx + mdy * mdy > touchSlop * touchSlop * 16) {
+                            touchSlid[0] = true;
+                            v.cancelLongPress();
                         }
                     }
-                }
+                    break;
+                case android.view.MotionEvent.ACTION_UP:
+                    if (touchSlid[0]) break;
+                    float dx = event.getX() - touchDown[0];
+                    float dy = event.getY() - touchDown[1];
+                    if (dx * dx + dy * dy > touchSlop * touchSlop * 4) break;
+                    TextView tv = (TextView) v;
+                    android.text.Layout layout = tv.getLayout();
+                    if (layout != null) {
+                        int x = (int) event.getX() - tv.getTotalPaddingLeft() + tv.getScrollX();
+                        int y = (int) event.getY() - tv.getTotalPaddingTop() + tv.getScrollY();
+                        int line = layout.getLineForVertical(y);
+                        int offset = layout.getOffsetForHorizontal(line, x);
+                        CharSequence text = tv.getText();
+                        if (text instanceof android.text.Spanned) {
+                            android.text.style.ClickableSpan[] spans =
+                                    ((android.text.Spanned) text).getSpans(offset, offset, android.text.style.ClickableSpan.class);
+                            if (spans.length > 0) {
+                                spans[0].onClick(tv);
+                                return true;
+                            }
+                        }
+                    }
+                    break;
             }
             return false;
         });
+        // Long press listener set synchronously to guarantee it's always available
+        setupLongPress(holder, surah);
 
         // Bismillah visibility (known statically)
         if (surah != 1 && surah != 9) {
@@ -194,7 +225,6 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
             holder.tvMushafText.setText(cached.spannableText);
             // Just invalidate to refresh highlight colors via updateDrawState
             holder.tvMushafText.invalidate();
-            setupLongPress(holder, surah);
             return;
         }
 
@@ -232,7 +262,7 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
                     public void onClick(@NonNull View widget) {
                         highlightedSurah = surahNum;
                         highlightedAyah = ayahNum;
-                        widget.invalidate();
+                        widget.postInvalidate();
                         if (interactionListener != null) {
                             interactionListener.onAyahTapped(surahNum, ayahNum);
                         }
@@ -246,7 +276,7 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
                     }
                 }, ayahTextStart, ayahTextEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
-                String marker = " \uFD3F" + ayah.ayahNumber + "\uFD3E ";
+                String marker = " (" + ayah.ayahNumber + ") ";
                 int markerStart = sb.length();
                 sb.append(marker);
                 int markerEnd = sb.length();
@@ -284,7 +314,6 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
                 if (holder.bindGeneration != generation) return;
                 holder.tvSurahHeader.setText(headerText);
                 holder.tvMushafText.setText(sb);
-                setupLongPress(holder, surah);
             });
         });
     }

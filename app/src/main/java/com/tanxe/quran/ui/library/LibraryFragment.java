@@ -29,6 +29,7 @@ import com.tanxe.quran.download.DownloadManager;
 import com.tanxe.quran.theme.ThemeManager;
 
 import java.util.List;
+import java.util.Set;
 
 public class LibraryFragment extends Fragment {
     private QuranRepository repository;
@@ -102,11 +103,12 @@ public class LibraryFragment extends Fragment {
                     case 2: currentCategory = "wbw"; break;
                     case 3: currentCategory = "reciter"; break;
                 }
-                // Reciters are language-independent — temporarily bypass language filter
+                // Auto-select user's language or "All" when switching tabs
                 if ("reciter".equals(currentCategory)) {
-                    adapter.filterByLanguage("all");
+                    selectLanguageChip("all");
                 } else {
-                    adapter.filterByLanguage(currentLanguageFilter);
+                    String userLang = repository.getLanguage();
+                    selectLanguageChip(userLang != null ? userLang : "all");
                 }
                 loadEditions();
             }
@@ -133,15 +135,62 @@ public class LibraryFragment extends Fragment {
         applyTheme();
     }
 
+    /** Programmatically select a language chip by language code, falling back to "All" */
+    private void selectLanguageChip(String langCode) {
+        if (languageChips == null) return;
+        // Try to find and check the matching chip
+        for (int i = 0; i < languageChips.getChildCount(); i++) {
+            View child = languageChips.getChildAt(i);
+            if (child instanceof Chip) {
+                String tag = (String) child.getTag();
+                if (langCode.equalsIgnoreCase(tag) || (langCode.equalsIgnoreCase("all") && "All".equals(tag))) {
+                    ((Chip) child).setChecked(true);
+                    currentLanguageFilter = "All".equals(tag) ? "all" : tag;
+                    adapter.filterByLanguage(currentLanguageFilter);
+                    return;
+                }
+            }
+        }
+        // Language not found in chips — fall back to "All"
+        for (int i = 0; i < languageChips.getChildCount(); i++) {
+            View child = languageChips.getChildAt(i);
+            if (child instanceof Chip && "All".equals(child.getTag())) {
+                ((Chip) child).setChecked(true);
+                currentLanguageFilter = "all";
+                adapter.filterByLanguage("all");
+                return;
+            }
+        }
+    }
+
     private void setupLanguageChips() {
         String[] defaultLangs = {"All", "en", "ur", "ar", "tr", "fr", "id", "bn", "fa", "ms", "de", "es"};
         String allLabel = Localization.get(repository.getLanguage(), Localization.SEARCH_ALL);
+        int accentColor = theme.getAccentColor();
+        int surfaceColor = theme.getSurfaceColor();
+        int textColor = theme.getSecondaryTextColor();
         for (String lang : defaultLangs) {
             Chip chip = new Chip(requireContext());
             chip.setText(lang.equals("All") ? allLabel : lang.toUpperCase());
             chip.setCheckable(true);
             chip.setChecked("All".equals(lang));
             chip.setTag(lang);
+            // Style: accent bg when checked, surface bg when unchecked
+            chip.setChipBackgroundColor(new android.content.res.ColorStateList(
+                    new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                    },
+                    new int[]{accentColor, surfaceColor}
+            ));
+            chip.setTextColor(new android.content.res.ColorStateList(
+                    new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                    },
+                    new int[]{0xFF1B3A1B, textColor}  // dark text on accent, secondary otherwise
+            ));
+            chip.setCheckedIconVisible(false);
             languageChips.addView(chip);
         }
         languageChips.setSelectionRequired(true);
@@ -173,37 +222,46 @@ public class LibraryFragment extends Fragment {
                 editions = repository.getEditionsByType("tafseer");
                 if (editions == null) editions = new java.util.ArrayList<>();
                 mergeQuranComTafseers(editions);
-                // Compute sizes and detect incomplete downloads
+                // Single batch query for ALL tafseer stats instead of 3×N individual queries
+                java.util.Map<String, com.tanxe.quran.data.entity.EditionStats> statsMap = new java.util.HashMap<>();
+                for (com.tanxe.quran.data.entity.EditionStats s : repository.getAllTafseerStats()) {
+                    statsMap.put(s.edition, s);
+                }
                 for (EditionInfo e : editions) {
-                    int surahCount = repository.getTafseerSurahCount(e.identifier);
-                    int ayahCount = repository.getTafseerCount(e.identifier);
-                    if (surahCount >= 114) {
-                        e.isDownloaded = true;
-                        long size = repository.getTafseerTextSize(e.identifier);
-                        e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs";
-                    } else if (surahCount > 0) {
-                        e.isDownloaded = false;
-                        e.downloadProgress = 0;
-                        long size = repository.getTafseerTextSize(e.identifier);
-                        e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs (incomplete)";
+                    com.tanxe.quran.data.entity.EditionStats s = statsMap.get(e.identifier);
+                    if (s != null) {
+                        // Consider complete if: ayah count >= 6236 OR all 114 surahs covered with >= 5000 ayahs
+                        if (s.ayahCount >= 6236 || (s.surahCount >= 114 && s.ayahCount >= 5000)) {
+                            e.isDownloaded = true;
+                            e.sizeText = formatSize(s.textSize) + " · " + s.ayahCount + " ayahs";
+                        } else if (s.ayahCount > 0) {
+                            e.isDownloaded = false;
+                            e.downloadProgress = 0;
+                            e.sizeText = formatSize(s.textSize) + " · " + s.ayahCount + "/6236 ayahs (incomplete)";
+                        }
                     }
                 }
             } else {
                 editions = repository.getEditionsByType(currentCategory);
-                // Compute sizes and detect incomplete downloads
-                if (editions != null) {
+                if (editions == null) editions = new java.util.ArrayList<>();
+                mergeGitHubTranslations(editions);
+                if (!editions.isEmpty()) {
+                    // Single batch query for ALL translation stats
+                    java.util.Map<String, com.tanxe.quran.data.entity.EditionStats> statsMap = new java.util.HashMap<>();
+                    for (com.tanxe.quran.data.entity.EditionStats s : repository.getAllTranslationStats()) {
+                        statsMap.put(s.edition, s);
+                    }
                     for (EditionInfo e : editions) {
-                        int surahCount = repository.getTranslationSurahCount(e.identifier);
-                        int ayahCount = repository.getTranslationCount(e.identifier);
-                        if (surahCount >= 114) {
-                            e.isDownloaded = true;
-                            long size = repository.getTranslationTextSize(e.identifier);
-                            e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs";
-                        } else if (surahCount > 0) {
-                            e.isDownloaded = false;
-                            e.downloadProgress = 0;
-                            long size = repository.getTranslationTextSize(e.identifier);
-                            e.sizeText = formatSize(size) + " · " + ayahCount + "/6236 ayahs (incomplete)";
+                        com.tanxe.quran.data.entity.EditionStats s = statsMap.get(e.identifier);
+                        if (s != null) {
+                            if (s.surahCount >= 114 && s.ayahCount >= 6236) {
+                                e.isDownloaded = true;
+                                e.sizeText = formatSize(s.textSize) + " · " + s.ayahCount + "/6236 ayahs";
+                            } else if (s.ayahCount > 0) {
+                                e.isDownloaded = false;
+                                e.downloadProgress = 0;
+                                e.sizeText = formatSize(s.textSize) + " · " + s.ayahCount + "/6236 ayahs (incomplete)";
+                            }
                         }
                     }
                 }
@@ -260,14 +318,37 @@ public class LibraryFragment extends Fragment {
             {"qc.ar.baghawi", "Tafsir Al-Baghawi", "ar", "Arabic", "94"},
             {"qc.ru.saddi", "Al-Sa'di (Russian)", "ru", "Russian", "170"},
             {"qc.ku.rebar", "Rebar Kurdish Tafsir", "ku", "Kurdish", "804"},
+            // alquran.cloud Arabic tafseers (no quran.com resource ID — use alquran.cloud API)
+            {"ar.jalalayn", "Tafsir al-Jalalayn", "ar", "Arabic", "0"},
+            {"ar.miqbas", "Tanwir al-Miqbas", "ar", "Arabic", "0"},
         };
 
         for (String[] t : qcTafseers) {
             if (!existing.contains(t[0])) {
                 EditionInfo ei = new EditionInfo(t[0], t[1], t[2], t[3], "tafseer",
                         "ar".equals(t[2]) || "ur".equals(t[2]) || "fa".equals(t[2]) || "ku".equals(t[2]) ? "rtl" : "ltr");
-                int surahCount = repository.getTafseerSurahCount(t[0]);
-                ei.isDownloaded = surahCount >= 114;
+                // isDownloaded will be set by the batch stats query in loadEditions()
+                editions.add(ei);
+            }
+        }
+    }
+
+    /** Merge GitHub-only translations (fawazahmed0) that aren't in alquran.cloud */
+    private void mergeGitHubTranslations(List<EditionInfo> editions) {
+        java.util.Set<String> existing = new java.util.HashSet<>();
+        for (EditionInfo e : editions) existing.add(e.identifier);
+
+        // Translations only available via fawazahmed0/quran-api (not on alquran.cloud)
+        String[][] ghTranslations = {
+            {"gh.ur.taqiusmani", "Aasan Tarjuma - Mufti Taqi Usmani", "ur", "Urdu"},
+            {"gh.ur.karamshah", "Zia ul Quran - Karam Shah", "ur", "Urdu"},
+            {"gh.ur.mahmoodulhassan", "Fatehul Hameed - Mahmood ul Hassan", "ur", "Urdu"},
+        };
+
+        for (String[] t : ghTranslations) {
+            if (!existing.contains(t[0])) {
+                EditionInfo ei = new EditionInfo(t[0], t[1], t[2], t[3], "translation",
+                        "ur".equals(t[2]) ? "rtl" : "ltr");
                 editions.add(ei);
             }
         }
@@ -520,7 +601,13 @@ public class LibraryFragment extends Fragment {
             repository.saveSelectedReciter(id);
             dm.downloadFullQuranAudio(id, status -> updateDownloadProgress(id, status));
         } else if ("translation".equals(edition.type)) {
-            dm.downloadTranslation(id, edition.language, status -> updateDownloadProgress(id, status));
+            String ghEdition = getGitHubTranslationEdition(id);
+            if (ghEdition != null) {
+                dm.downloadTranslationFromGitHub(id, ghEdition, edition.language,
+                        status -> updateDownloadProgress(id, status));
+            } else {
+                dm.downloadTranslation(id, edition.language, status -> updateDownloadProgress(id, status));
+            }
         } else {
             int qcResourceId = getQuranComResourceId(id);
             if (qcResourceId > 0) {
@@ -560,6 +647,16 @@ public class LibraryFragment extends Fragment {
         }
     }
 
+    /** Get fawazahmed0/quran-api edition key for GitHub-only translations, or null */
+    private String getGitHubTranslationEdition(String identifier) {
+        switch (identifier) {
+            case "gh.ur.taqiusmani": return "urd-muhammadtaqiusm";
+            case "gh.ur.karamshah": return "urd-muhammadkaramsh";
+            case "gh.ur.mahmoodulhassan": return "urd-mahmoodulhassan";
+            default: return null;
+        }
+    }
+
     private void confirmCancelDownload(EditionInfo edition, int position) {
         new AlertDialog.Builder(requireContext())
                 .setTitle("Cancel Download")
@@ -576,24 +673,36 @@ public class LibraryFragment extends Fragment {
     }
 
     private void selectEdition(EditionInfo edition) {
-        String activeLabel = Localization.get(repository.getLanguage(), Localization.ACTIVE);
+        String lang = repository.getLanguage();
         switch (currentCategory) {
             case "translation":
-                repository.saveSelectedTranslation(edition.identifier);
-                Toast.makeText(requireContext(), activeLabel + ": " + edition.name, Toast.LENGTH_SHORT).show();
+                // Multi-select: toggle this translation in/out of selected set
+                repository.toggleSelectedTranslation(edition.identifier);
+                boolean isNowSelected = repository.isTranslationSelected(edition.identifier);
+                String transMsg = isNowSelected ?
+                        Localization.get(lang, Localization.SELECTED) + ": " + edition.name :
+                        Localization.get(lang, Localization.DESELECTED) + ": " + edition.name;
+                Toast.makeText(requireContext(), transMsg, Toast.LENGTH_SHORT).show();
                 break;
             case "tafseer":
-                repository.saveSelectedTafseer(edition.identifier);
-                Toast.makeText(requireContext(), activeLabel + ": " + edition.name, Toast.LENGTH_SHORT).show();
+                // Multi-select: toggle this tafseer in/out of selected set
+                repository.toggleSelectedTafseer(edition.identifier);
+                boolean isTafNowSelected = repository.isTafseerSelected(edition.identifier);
+                String tafMsg = isTafNowSelected ?
+                        Localization.get(lang, Localization.SELECTED) + ": " + edition.name :
+                        Localization.get(lang, Localization.DESELECTED) + ": " + edition.name;
+                Toast.makeText(requireContext(), tafMsg, Toast.LENGTH_SHORT).show();
                 break;
             case "wbw":
-                String lang = edition.identifier.replace("wbw.", "");
-                repository.saveSelectedWbwLanguage(lang);
+                String wbwLang = edition.identifier.replace("wbw.", "");
+                repository.saveSelectedWbwLanguage(wbwLang);
+                String activeLabel = Localization.get(lang, Localization.ACTIVE);
                 Toast.makeText(requireContext(), activeLabel + ": " + edition.name, Toast.LENGTH_SHORT).show();
                 break;
             case "reciter":
                 repository.saveSelectedReciter(edition.identifier);
-                Toast.makeText(requireContext(), activeLabel + ": " + edition.name, Toast.LENGTH_SHORT).show();
+                String activeRecLabel = Localization.get(lang, Localization.ACTIVE);
+                Toast.makeText(requireContext(), activeRecLabel + ": " + edition.name, Toast.LENGTH_SHORT).show();
                 break;
         }
         updateActiveIdentifier();
@@ -602,10 +711,12 @@ public class LibraryFragment extends Fragment {
     private void updateActiveIdentifier() {
         switch (currentCategory) {
             case "translation":
-                adapter.setActiveIdentifier(repository.getSelectedTranslation());
+                // Multi-select: show ticks for all selected translations
+                adapter.setActiveIdentifiers(repository.getSelectedTranslations());
                 break;
             case "tafseer":
-                adapter.setActiveIdentifier(repository.getSelectedTafseer());
+                // Multi-select: show ticks for all selected tafseers
+                adapter.setActiveIdentifiers(repository.getSelectedTafseers());
                 break;
             case "wbw":
                 adapter.setActiveIdentifier("wbw." + repository.getSelectedWbwLanguage());

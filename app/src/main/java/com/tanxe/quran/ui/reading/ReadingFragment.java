@@ -13,11 +13,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsetsController;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.NumberPicker;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,7 +41,6 @@ import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.ui.adapter.AyahPagerAdapter;
 import com.tanxe.quran.ui.adapter.HafizPageAdapter;
 import com.tanxe.quran.ui.adapter.MushafAdapter;
-import com.tanxe.quran.ui.learn.LearnFragment;
 import com.tanxe.quran.ui.share.ShareCardGenerator;
 import com.tanxe.quran.util.Localization;
 import com.tanxe.quran.util.QuranDataParser;
@@ -79,10 +75,7 @@ public class ReadingFragment extends Fragment {
     private ImageButton btnBookmark;
 
     // Display mode buttons (instant switching)
-    private TextView btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw, btnModeHafiz, btnModeLearn;
-
-    // Source spinner
-    private Spinner spinnerSource;
+    private TextView btnModeArabic, btnModeWbw, btnModeHafiz;
 
     // Toolbar
     private ImageButton btnPrevious, btnPlay, btnNext, btnRepeat, btnRandom;
@@ -93,7 +86,7 @@ public class ReadingFragment extends Fragment {
     private List<AyahDao.SurahInfo> surahs = new ArrayList<>();
     private int currentSurah = 1;
     private int currentAyah = 1;
-    private String displayMode = "translation"; // arabic, translation, tafseer, wbw, hafiz
+    private String displayMode = "arabic"; // arabic, wbw, hafiz
     private boolean isPlaying = false;
     private boolean continuousPlay = false;
     private int playingSurah = -1;
@@ -105,7 +98,8 @@ public class ReadingFragment extends Fragment {
 
     // Fullscreen state
     private boolean isFullscreen = false;
-    private ImageButton btnFullscreen, btnExitFullscreen;
+    private ImageButton btnFullscreen;
+    private ImageButton btnExitFullscreen;
     private OnBackPressedCallback fullscreenBackCallback;
 
     // Playback speeds
@@ -165,13 +159,17 @@ public class ReadingFragment extends Fragment {
         currentSurah = pos[0];
         currentAyah = pos[1];
         displayMode = repository.getDisplayMode();
-        if (displayMode == null || displayMode.isEmpty()) displayMode = "translation";
+        // Migrate removed modes to arabic
+        if (displayMode == null || displayMode.isEmpty() ||
+                "translation".equals(displayMode) || "tafseer".equals(displayMode)) {
+            displayMode = "arabic";
+            repository.saveDisplayMode("arabic");
+        }
 
         setupRecyclerView();
         setupGestures(view);
         setupAudioCallback();
         updateModeButtons();
-        updateSourceSpinner();
 
         // Back press handler for fullscreen exit
         fullscreenBackCallback = new OnBackPressedCallback(false) {
@@ -192,14 +190,8 @@ public class ReadingFragment extends Fragment {
 
         // Display mode buttons
         btnModeArabic = view.findViewById(R.id.btn_mode_arabic);
-        btnModeTranslation = view.findViewById(R.id.btn_mode_translation);
-        btnModeTafseer = view.findViewById(R.id.btn_mode_tafseer);
         btnModeWbw = view.findViewById(R.id.btn_mode_wbw);
         btnModeHafiz = view.findViewById(R.id.btn_mode_hafiz);
-        btnModeLearn = view.findViewById(R.id.btn_mode_learn);
-
-        // Source spinner
-        spinnerSource = view.findViewById(R.id.spinner_source);
 
         // RecyclerView
         recyclerView = view.findViewById(R.id.rv_ayahs);
@@ -237,22 +229,10 @@ public class ReadingFragment extends Fragment {
             }
         });
 
-        // Instant mode switching — ensure clickable
-        btnModeArabic.setClickable(true);
-        btnModeTranslation.setClickable(true);
-        btnModeTafseer.setClickable(true);
-        btnModeWbw.setClickable(true);
-        btnModeHafiz.setClickable(true);
-        btnModeArabic.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: arabic"); switchDisplayMode("arabic"); });
-        btnModeTranslation.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: translation"); switchDisplayMode("translation"); });
-        btnModeTafseer.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: tafseer"); switchDisplayMode("tafseer"); });
-        btnModeWbw.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: wbw"); switchDisplayMode("wbw"); });
-        btnModeHafiz.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: hafiz"); switchDisplayMode("hafiz"); });
-        btnModeLearn.setClickable(true);
-        btnModeLearn.setOnClickListener(v -> {
-            LearnFragment learnDialog = new LearnFragment();
-            learnDialog.show(getChildFragmentManager(), "learn_mode");
-        });
+        // Instant mode switching
+        btnModeArabic.setOnClickListener(v -> switchDisplayMode("arabic"));
+        btnModeWbw.setOnClickListener(v -> switchDisplayMode("wbw"));
+        btnModeHafiz.setOnClickListener(v -> switchDisplayMode("hafiz"));
 
         // Toolbar buttons
         btnPrevious.setOnClickListener(v -> navigatePrev());
@@ -273,22 +253,7 @@ public class ReadingFragment extends Fragment {
         ImageButton btnReadingPoint = view.findViewById(R.id.fab_reading_point);
         btnReadingPoint.setOnClickListener(v -> {
             int[] pos = repository.getCurrentPosition();
-            int rpSurah = pos[0];
-            int rpAyah = pos[1];
-            navigateToAyah(rpSurah, rpAyah);
-            // Highlight after scroll settles (not applicable in hafiz mode)
-            if (!"hafiz".equals(displayMode)) {
-                recyclerView.post(() -> {
-                    if ("arabic".equals(displayMode)) {
-                        if (mushafAdapter != null) {
-                            mushafAdapter.setHighlightedAyah(rpSurah, rpAyah);
-                        }
-                    } else {
-                        int flatPos = AyahPagerAdapter.surahAyahToPosition(rpSurah, rpAyah);
-                        pagerAdapter.setPlayingPosition(flatPos);
-                    }
-                });
-            }
+            navigateToAyah(pos[0], pos[1]);
         });
 
         // Fullscreen button
@@ -299,7 +264,7 @@ public class ReadingFragment extends Fragment {
         });
 
         // Floating exit fullscreen button (visible only in fullscreen mode)
-        btnExitFullscreen = view.findViewById(R.id.btn_exit_fullscreen);
+        btnExitFullscreen = (ImageButton) view.findViewById(R.id.btn_exit_fullscreen);
         btnExitFullscreen.setOnClickListener(v -> exitFullscreen());
 
         // Font size +/- buttons
@@ -310,15 +275,10 @@ public class ReadingFragment extends Fragment {
     }
 
     private void switchDisplayMode(String mode) {
-        android.util.Log.d("ReadingFragment", "switchDisplayMode: " + displayMode + " → " + mode);
         String oldMode = displayMode;
         displayMode = mode;
         repository.saveDisplayMode(mode);
         updateModeButtons();
-        updateSourceSpinner();
-
-        // Refresh cached preferences in adapter (edition selection may have changed)
-        if (pagerAdapter != null) pagerAdapter.refreshCachedPrefs();
 
         boolean wasHafiz = "hafiz".equals(oldMode);
         boolean isHafiz = "hafiz".equals(mode);
@@ -366,7 +326,7 @@ public class ReadingFragment extends Fragment {
                 mushafAdapter.setHighlightedAyah(playingSurah, playingAyah);
             }
         } else if (!"arabic".equals(mode) && "arabic".equals(oldMode)) {
-            // Switch back to ayah adapter
+            // Switch back to ayah adapter (wbw)
             recyclerView.setAdapter(pagerAdapter);
             pagerAdapter.setDisplayMode(mode);
             int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
@@ -396,14 +356,11 @@ public class ReadingFragment extends Fragment {
         // Set localized labels
         String lang = repository.getLanguage();
         btnModeArabic.setText(Localization.get(lang, Localization.MODE_ARABIC));
-        btnModeTranslation.setText(Localization.get(lang, Localization.MODE_TRANSLATION));
-        btnModeTafseer.setText(Localization.get(lang, Localization.MODE_TAFSEER));
         btnModeWbw.setText(Localization.get(lang, Localization.MODE_WBW));
         btnModeHafiz.setText(Localization.get(lang, Localization.MODE_HAFIZ));
-        btnModeLearn.setText(Localization.get(lang, Localization.MODE_LEARN));
 
-        // Reset all buttons to inactive style (Learn is always inactive since it opens a dialog)
-        TextView[] allBtns = {btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw, btnModeHafiz, btnModeLearn};
+        // Reset all buttons to inactive style
+        TextView[] allBtns = {btnModeArabic, btnModeWbw, btnModeHafiz};
         for (TextView btn : allBtns) {
             btn.setBackgroundColor(android.graphics.Color.TRANSPARENT);
             btn.setTextColor(theme.getSecondaryTextColor());
@@ -412,156 +369,15 @@ public class ReadingFragment extends Fragment {
         // Highlight active button with themed pill
         TextView activeBtn;
         switch (displayMode) {
-            case "arabic": activeBtn = btnModeArabic; break;
-            case "tafseer": activeBtn = btnModeTafseer; break;
             case "wbw": activeBtn = btnModeWbw; break;
             case "hafiz": activeBtn = btnModeHafiz; break;
-            default: activeBtn = btnModeTranslation; break;
+            default: activeBtn = btnModeArabic; break;
         }
         GradientDrawable activeBg = new GradientDrawable();
         activeBg.setColor(theme.getModePillActiveColor());
         activeBg.setCornerRadius(60);
         activeBtn.setBackground(activeBg);
         activeBtn.setTextColor(theme.isDarkTheme() ? 0xFFFFFFFF : 0xFF000000);
-    }
-
-    private void updateSourceSpinner() {
-        // Show spinner for tafseer and translation (to pick edition), hide for arabic/wbw/hafiz
-        if ("tafseer".equals(displayMode) || "translation".equals(displayMode)) {
-            spinnerSource.setVisibility(View.VISIBLE);
-            setupSourceSpinner();
-        } else if ("wbw".equals(displayMode)) {
-            spinnerSource.setVisibility(View.VISIBLE);
-            setupSourceSpinner();
-        } else {
-            spinnerSource.setVisibility(View.GONE);
-        }
-    }
-
-    // Stores the raw edition identifiers parallel to the spinner display names
-    private List<String> sourceIdentifiers = new ArrayList<>();
-    private boolean spinnerInitializing = false;
-
-    private void setupSourceSpinner() {
-        repository.getExecutor().execute(() -> {
-            List<String> displayNames = new ArrayList<>();
-            List<String> identifiers = new ArrayList<>();
-            int selectedIndex = 0;
-
-            if ("translation".equals(displayMode)) {
-                String currentEdition = repository.getSelectedTranslation();
-                displayNames.add("ur.jalandhry (" + Localization.get(repository.getLanguage(), Localization.BUILT_IN) + ")");
-                identifiers.add("ur.jalandhry");
-                List<String> editions = repository.getAvailableTranslations();
-                if (editions != null) {
-                    for (String e : editions) {
-                        displayNames.add(e);
-                        identifiers.add(e);
-                    }
-                }
-                // Find selected index
-                for (int i = 0; i < identifiers.size(); i++) {
-                    if (identifiers.get(i).equals(currentEdition)) { selectedIndex = i; break; }
-                }
-            } else if ("tafseer".equals(displayMode)) {
-                String currentEdition = repository.getSelectedTafseer();
-                List<String> editions = repository.getAvailableTafseers();
-                if (editions != null && !editions.isEmpty()) {
-                    for (String e : editions) {
-                        displayNames.add(e);
-                        identifiers.add(e);
-                    }
-                    for (int i = 0; i < identifiers.size(); i++) {
-                        if (identifiers.get(i).equals(currentEdition)) { selectedIndex = i; break; }
-                    }
-                } else {
-                    displayNames.add(Localization.get(repository.getLanguage(), Localization.NO_TAFSEER));
-                    identifiers.add("");
-                }
-            } else if ("wbw".equals(displayMode)) {
-                String currentLang = repository.getSelectedWbwLanguage();
-                List<String> langs = repository.getAvailableWbwLanguages();
-                if (langs != null && !langs.isEmpty()) {
-                    for (String l : langs) {
-                        displayNames.add(Localization.get(repository.getLanguage(), Localization.MODE_WBW) + " - " + l);
-                        identifiers.add(l);
-                    }
-                    for (int i = 0; i < identifiers.size(); i++) {
-                        if (identifiers.get(i).equals(currentLang)) { selectedIndex = i; break; }
-                    }
-                } else {
-                    displayNames.add(Localization.get(repository.getLanguage(), Localization.NO_WBW));
-                    identifiers.add("");
-                }
-            }
-
-            if (getActivity() != null) {
-                List<String> finalNames = displayNames;
-                List<String> finalIds = identifiers;
-                int finalSelected = selectedIndex;
-                requireActivity().runOnUiThread(() -> {
-                    sourceIdentifiers = finalIds;
-                    spinnerInitializing = true;
-                    ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(requireContext(),
-                            R.layout.spinner_source_item, android.R.id.text1, finalNames) {
-                        @Override
-                        public View getView(int pos, View convertView, android.view.ViewGroup parent) {
-                            View view = super.getView(pos, convertView, parent);
-                            if (view instanceof TextView) {
-                                TextView tv = (TextView) view;
-                                tv.setTextColor(theme.getAccentColor());
-                            }
-                            return view;
-                        }
-                        @Override
-                        public View getDropDownView(int pos, View convertView, android.view.ViewGroup parent) {
-                            View view = super.getDropDownView(pos, convertView, parent);
-                            if (view instanceof TextView) {
-                                TextView tv = (TextView) view;
-                                tv.setTextColor(theme.getPrimaryTextColor());
-                                tv.setBackgroundColor(theme.getSurfaceColor());
-                                // Highlight selected item
-                                if (pos == spinnerSource.getSelectedItemPosition()) {
-                                    tv.setTextColor(theme.getAccentColor());
-                                }
-                            }
-                            return view;
-                        }
-                    };
-                    spinnerAdapter.setDropDownViewResource(R.layout.spinner_source_dropdown_item);
-                    spinnerSource.setAdapter(spinnerAdapter);
-                    spinnerSource.setSelection(finalSelected);
-                    spinnerSource.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                        @Override
-                        public void onItemSelected(AdapterView<?> parent, View v, int position, long id) {
-                            if (spinnerInitializing) { spinnerInitializing = false; return; }
-                            if (position >= sourceIdentifiers.size()) return;
-                            String selectedId = sourceIdentifiers.get(position);
-                            if (selectedId.isEmpty()) return;
-
-                            switch (displayMode) {
-                                case "translation":
-                                    repository.saveSelectedTranslation(selectedId);
-                                    break;
-                                case "tafseer":
-                                    repository.saveSelectedTafseer(selectedId);
-                                    break;
-                                case "wbw":
-                                    repository.saveSelectedWbwLanguage(selectedId);
-                                    break;
-                            }
-                            // Refresh cached prefs and content
-                            if (pagerAdapter != null) {
-                                pagerAdapter.refreshCachedPrefs();
-                                pagerAdapter.notifyDataSetChanged();
-                            }
-                        }
-                        @Override
-                        public void onNothingSelected(AdapterView<?> parent) {}
-                    });
-                });
-            }
-        });
     }
 
     private void setupAudioCallback() {
@@ -646,19 +462,17 @@ public class ReadingFragment extends Fragment {
 
         pagerAdapter = new AyahPagerAdapter(repository, theme, arabicFont, urduFont);
         pagerAdapter.setDisplayMode(displayMode);
-        pagerAdapter.setLongPressListener((surah, ayah, position) -> showAyahActionsSheet(surah, ayah, position));
-        pagerAdapter.setContentClickListener(new AyahPagerAdapter.OnContentClickListener() {
-            @Override
-            public void onTranslationClick(int surah, int ayah) {
-                openCompareSheet(surah, ayah, "translation");
-            }
-            @Override
-            public void onTafseerClick(int surah, int ayah) {
-                openCompareSheet(surah, ayah, "tafseer");
-            }
-        });
         // Prime the preload cache for the initial position
         pagerAdapter.preloadAround(AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah));
+
+        // Tap = highlight + compare sheet, Long press = compare sheet (all, with selectable text)
+        pagerAdapter.setTapListener((surah, ayah, position) -> {
+            currentSurah = surah;
+            currentAyah = ayah;
+            updateHeader();
+            openCompareSheet(surah, ayah, "translation");
+        });
+        pagerAdapter.setLongPressListener((surah, ayah, position) -> openCompareSheet(surah, ayah, "all"));
 
         if ("hafiz".equals(displayMode)) {
             // Start with hafiz mode
@@ -729,17 +543,16 @@ public class ReadingFragment extends Fragment {
     }
 
     private void setupGestures(View view) {
-        // Double-tap on surah name to cycle modes (not on the whole header to avoid touch conflicts)
+        // Double-tap on surah name to cycle modes
         GestureDetector gestureDetector = new GestureDetector(requireContext(),
                 new GestureDetector.SimpleOnGestureListener() {
                     @Override
                     public boolean onDoubleTap(@NonNull MotionEvent e) {
                         switch (displayMode) {
-                            case "translation": switchDisplayMode("tafseer"); break;
-                            case "tafseer": switchDisplayMode("wbw"); break;
+                            case "arabic": switchDisplayMode("wbw"); break;
                             case "wbw": switchDisplayMode("hafiz"); break;
                             case "hafiz": switchDisplayMode("arabic"); break;
-                            default: switchDisplayMode("translation"); break;
+                            default: switchDisplayMode("arabic"); break;
                         }
                         return true;
                     }
@@ -844,6 +657,12 @@ public class ReadingFragment extends Fragment {
             }
         }
         updateHeader();
+        // Post highlight after layout so scroll completes first
+        if (recyclerView != null) {
+            recyclerView.post(this::highlightActiveAyah);
+        } else {
+            highlightActiveAyah();
+        }
     }
 
     private void navigateNext() {
@@ -858,7 +677,6 @@ public class ReadingFragment extends Fragment {
         currentSurah = nextSurah;
         currentAyah = nextAyah;
         navigateToAyah(currentSurah, currentAyah);
-        highlightActiveAyah();
     }
 
     private void navigatePrev() {
@@ -872,7 +690,6 @@ public class ReadingFragment extends Fragment {
         currentSurah = prevSurah;
         currentAyah = prevAyah;
         navigateToAyah(currentSurah, currentAyah);
-        highlightActiveAyah();
     }
 
     private void highlightActiveAyah() {
@@ -895,35 +712,16 @@ public class ReadingFragment extends Fragment {
         });
     }
 
+    public void showBookmarks() {
+        showBookmarkList();
+    }
+
     private void showBookmarkList() {
-        repository.getExecutor().execute(() -> {
-            List<Bookmark> bookmarks = repository.getAllBookmarks();
-            if (getActivity() == null) return;
-            requireActivity().runOnUiThread(() -> {
-                if (bookmarks == null || bookmarks.isEmpty()) {
-                    Toast.makeText(requireContext(), Localization.get(repository.getLanguage(), Localization.NO_BOOKMARKS), Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                String[] items = new String[bookmarks.size()];
-                for (int i = 0; i < bookmarks.size(); i++) {
-                    Bookmark b = bookmarks.get(i);
-                    String name = (b.surahName != null && !b.surahName.isEmpty()) ? b.surahName : Localization.get(repository.getLanguage(), Localization.SURAH) + " " + b.surahNumber;
-                    items[i] = name + " — " + Localization.get(repository.getLanguage(), Localization.AYAH) + " " + b.ayahNumber;
-                }
-                new AlertDialog.Builder(requireContext())
-                        .setTitle(Localization.get(repository.getLanguage(), Localization.BOOKMARKS))
-                        .setItems(items, (dialog, which) -> {
-                            Bookmark b = bookmarks.get(which);
-                            navigateToAyah(b.surahNumber, b.ayahNumber);
-                            if (!"arabic".equals(displayMode)) {
-                                int flatPos = AyahPagerAdapter.surahAyahToPosition(b.surahNumber, b.ayahNumber);
-                                pagerAdapter.setPlayingPosition(flatPos);
-                            }
-                        })
-                        .setNegativeButton(Localization.get(repository.getLanguage(), Localization.CLOSE), null)
-                        .show();
-            });
+        BookmarksBottomSheet sheet = new BookmarksBottomSheet();
+        sheet.setOnBookmarkClickListener((surah, ayah) -> {
+            navigateToAyah(surah, ayah);
         });
+        sheet.show(getChildFragmentManager(), "bookmarks");
     }
 
     private void shareAyah() {
@@ -1038,7 +836,6 @@ public class ReadingFragment extends Fragment {
         });
     }
 
-    /** Fancy bottom sheet for ayah actions on long press */
     private void setupMushafListener() {
         if (mushafAdapter == null) return;
         mushafAdapter.setInteractionListener(new MushafAdapter.OnAyahInteractionListener() {
@@ -1047,11 +844,12 @@ public class ReadingFragment extends Fragment {
                 currentSurah = surah;
                 currentAyah = ayah;
                 updateHeader();
+                openCompareSheet(surah, ayah, "translation");
             }
 
             @Override
             public void onAyahLongPressed(int surah, int ayah) {
-                showAyahActionsSheet(surah, ayah, MushafAdapter.surahToPosition(surah));
+                openCompareSheet(surah, ayah, "all");
             }
         });
     }
@@ -1145,7 +943,7 @@ public class ReadingFragment extends Fragment {
 
                     @Override
                     public void onSelectText() {
-                        enableTextSelectionAt(position);
+                        openCompareSheet(surah, ayah, "all");
                     }
 
                     @Override
@@ -1163,11 +961,16 @@ public class ReadingFragment extends Fragment {
         });
     }
 
+    private boolean compareSheetOpen = false;
+
     private void openCompareSheet(int surah, int ayah, String initialFilter) {
+        if (compareSheetOpen) return;
+        compareSheetOpen = true;
         repository.getExecutor().execute(() -> {
             com.tanxe.quran.data.entity.Ayah ayahData = repository.getAyah(surah, ayah);
-            if (getActivity() == null) return;
+            if (getActivity() == null) { compareSheetOpen = false; return; }
             requireActivity().runOnUiThread(() -> {
+                if (!isAdded()) { compareSheetOpen = false; return; }
                 String surahName = ayahData != null ? ayahData.surahNameEn : "";
                 TranslationCompareBottomSheet compareSheet = new TranslationCompareBottomSheet();
                 compareSheet.setData(surah, ayah, surahName,
@@ -1175,63 +978,14 @@ public class ReadingFragment extends Fragment {
                         ayahData != null ? ayahData.defaultTranslation : "",
                         arabicFont, urduFont);
                 compareSheet.setInitialFilter(initialFilter);
-                compareSheet.show(getChildFragmentManager(), "compare_translations");
+                compareSheet.setOnDismissListener(() -> compareSheetOpen = false);
+                try {
+                    compareSheet.show(getChildFragmentManager(), "compare_translations");
+                } catch (Exception e) {
+                    compareSheetOpen = false;
+                }
             });
         });
-    }
-
-    private void enableTextSelectionAt(int position) {
-        if (recyclerView == null) return;
-        // Delay to let bottom sheet dismiss before enabling selection
-        recyclerView.postDelayed(() -> {
-            if ("arabic".equals(displayMode)) {
-                RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(
-                        MushafAdapter.surahToPosition(currentSurah));
-                if (vh != null) {
-                    TextView tvMushaf = vh.itemView.findViewById(R.id.tv_mushaf_text);
-                    if (tvMushaf != null) {
-                        // Remove ClickableSpans that conflict with text selection
-                        CharSequence text = tvMushaf.getText();
-                        if (text instanceof android.text.Spannable) {
-                            android.text.Spannable spannable = (android.text.Spannable) text;
-                            android.text.style.ClickableSpan[] clicks = spannable.getSpans(
-                                    0, spannable.length(), android.text.style.ClickableSpan.class);
-                            for (android.text.style.ClickableSpan cs : clicks) {
-                                spannable.removeSpan(cs);
-                            }
-                        }
-                        // Remove long-click & movement method that block selection
-                        tvMushaf.setOnLongClickListener(null);
-                        tvMushaf.setMovementMethod(null);
-                        tvMushaf.setTextIsSelectable(true);
-                        tvMushaf.setHighlightColor(0x440088FF); // restore selection highlight
-                        tvMushaf.requestFocus();
-                        // Trigger native selection on next frame after view is ready
-                        tvMushaf.post(() -> tvMushaf.performLongClick());
-                    }
-                }
-            } else {
-                RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(position);
-                if (vh != null) {
-                    TextView tvArabic = vh.itemView.findViewById(R.id.tv_arabic);
-                    TextView tvTranslation = vh.itemView.findViewById(R.id.tv_translation);
-                    TextView tvExtra = vh.itemView.findViewById(R.id.tv_extra_content);
-                    if (tvArabic != null) {
-                        tvArabic.setTextIsSelectable(true);
-                        tvArabic.requestFocus();
-                        selectAllText(tvArabic);
-                    }
-                    if (tvTranslation != null) tvTranslation.setTextIsSelectable(true);
-                    if (tvExtra != null && tvExtra.getVisibility() == View.VISIBLE) tvExtra.setTextIsSelectable(true);
-                }
-            }
-        }, 350);
-    }
-
-    private void selectAllText(TextView tv) {
-        if (tv.getText() instanceof android.text.Spannable) {
-            android.text.Selection.selectAll((android.text.Spannable) tv.getText());
-        }
     }
 
     private void shareAyahText(int surah, int ayah) {
@@ -1278,29 +1032,23 @@ public class ReadingFragment extends Fragment {
         if (isFullscreen || getActivity() == null) return;
         isFullscreen = true;
 
-        // Hide UI chrome — keep current display mode as-is
+        // Hide UI chrome instantly
         View headerBar = getView().findViewById(R.id.header_bar);
         headerBar.setVisibility(View.GONE);
-        spinnerSource.setVisibility(View.GONE);
         floatingToolbar.setVisibility(View.GONE);
-
-        // Hide bottom navigation
         if (getActivity() instanceof MainActivity) {
             View bottomNav = getActivity().findViewById(R.id.bottom_navigation);
             if (bottomNav != null) bottomNav.setVisibility(View.GONE);
         }
 
-        // Immersive fullscreen — hide status & navigation bars
+        // Immersive fullscreen
         WindowInsetsControllerCompat insetsController = WindowCompat.getInsetsController(
                 requireActivity().getWindow(), requireActivity().getWindow().getDecorView());
         insetsController.hide(WindowInsetsCompat.Type.systemBars());
         insetsController.setSystemBarsBehavior(
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
 
-        // Show floating exit button, hide toolbar fullscreen button
         btnExitFullscreen.setVisibility(View.VISIBLE);
-
-        // Enable back press callback
         fullscreenBackCallback.setEnabled(true);
     }
 
@@ -1308,12 +1056,10 @@ public class ReadingFragment extends Fragment {
         if (!isFullscreen || getActivity() == null) return;
         isFullscreen = false;
 
-        // Show UI chrome
+        // Show UI chrome instantly
         View headerBar = getView().findViewById(R.id.header_bar);
         headerBar.setVisibility(View.VISIBLE);
         floatingToolbar.setVisibility(View.VISIBLE);
-
-        // Show bottom navigation
         if (getActivity() instanceof MainActivity) {
             View bottomNav = getActivity().findViewById(R.id.bottom_navigation);
             if (bottomNav != null) bottomNav.setVisibility(View.VISIBLE);
@@ -1324,18 +1070,11 @@ public class ReadingFragment extends Fragment {
                 requireActivity().getWindow(), requireActivity().getWindow().getDecorView());
         insetsController.show(WindowInsetsCompat.Type.systemBars());
 
-        // Restore source spinner if needed
-        updateSourceSpinner();
+        // Restore status/nav bar colors only (no full theme refresh)
+        requireActivity().getWindow().setStatusBarColor(theme.getBackgroundColor());
+        requireActivity().getWindow().setNavigationBarColor(theme.getSurfaceColor());
 
-        // Re-apply theme (restores status bar colors)
-        if (getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).refreshTheme();
-        }
-
-        // Hide floating exit button
         btnExitFullscreen.setVisibility(View.GONE);
-
-        // Disable back press callback
         fullscreenBackCallback.setEnabled(false);
     }
 
@@ -1376,21 +1115,6 @@ public class ReadingFragment extends Fragment {
 
         updateModeButtons();
 
-        // Source spinner theming
-        if (spinnerSource != null) {
-            GradientDrawable selectorBg = new GradientDrawable();
-            selectorBg.setColor(theme.getModePillColor());
-            selectorBg.setCornerRadius(48);
-            selectorBg.setStroke(1, theme.getDividerColor());
-            spinnerSource.setBackground(selectorBg);
-
-            GradientDrawable popupBg = new GradientDrawable();
-            popupBg.setColor(theme.getSurfaceColor());
-            popupBg.setCornerRadius(32);
-            spinnerSource.setPopupBackgroundDrawable(popupBg);
-            updateSourceSpinner(); // rebuild adapter with current theme colors
-        }
-
         // Floating toolbar with themed background
         GradientDrawable toolbarBg = new GradientDrawable();
         toolbarBg.setColor(theme.getToolbarColor());
@@ -1426,11 +1150,17 @@ public class ReadingFragment extends Fragment {
         ImageButton btnRP = getView().findViewById(R.id.fab_reading_point);
         if (btnRP != null) btnRP.setColorFilter(theme.getAccentColor());
         if (btnFullscreen != null) btnFullscreen.setColorFilter(theme.getAccentColor());
+        if (btnExitFullscreen != null) {
+            btnExitFullscreen.setColorFilter(theme.getAccentColor());
+            GradientDrawable exitBg = new GradientDrawable();
+            exitBg.setShape(GradientDrawable.OVAL);
+            exitBg.setColor(theme.getToolbarColor());
+            btnExitFullscreen.setBackground(exitBg);
+        }
 
         if (btnSpeed != null) btnSpeed.setTextColor(theme.getAccentColor());
         if (btnFontDecrease != null) btnFontDecrease.setTextColor(theme.getAccentColor());
         if (btnFontIncrease != null) btnFontIncrease.setTextColor(theme.getAccentColor());
-        if (btnModeLearn != null) btnModeLearn.setTextColor(theme.getSecondaryTextColor());
         if (tvReciterName != null) tvReciterName.setTextColor(theme.getSecondaryTextColor());
 
         // Reload arabic font

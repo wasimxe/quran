@@ -234,8 +234,26 @@ public class LearnFragment extends DialogFragment {
                     for (AyahDao.SurahInfo s : surahList) {
                         scopeItems.add(s.surahNumber + ". " + s.surahNameEn);
                     }
-                    ArrayAdapter<String> scopeAdapter = new ArrayAdapter<>(requireContext(),
-                            android.R.layout.simple_spinner_item, scopeItems);
+                    ArrayAdapter<String> scopeAdapter = new ArrayAdapter<String>(requireContext(),
+                            android.R.layout.simple_spinner_item, scopeItems) {
+                        @Override
+                        public View getView(int position, View convertView, ViewGroup parent) {
+                            View v = super.getView(position, convertView, parent);
+                            if (v instanceof TextView) {
+                                ((TextView) v).setTextColor(theme.getAccentColor());
+                            }
+                            return v;
+                        }
+                        @Override
+                        public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                            View v = super.getDropDownView(position, convertView, parent);
+                            if (v instanceof TextView) {
+                                ((TextView) v).setTextColor(theme.getPrimaryTextColor());
+                                v.setBackgroundColor(theme.getSurfaceColor());
+                            }
+                            return v;
+                        }
+                    };
                     scopeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                     spinnerScope.setAdapter(scopeAdapter);
                     // This triggers onItemSelected → loadWords()

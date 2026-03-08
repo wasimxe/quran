@@ -18,8 +18,10 @@ import android.util.LruCache;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -117,6 +119,7 @@ public class QuranRepository {
     public int getTranslationCount(String edition) { return translationDao.getEditionCount(edition); }
     public long getTranslationTextSize(String edition) { return translationDao.getEditionTextSize(edition); }
     public int getTranslationSurahCount(String edition) { return translationDao.getDistinctSurahCount(edition); }
+    public List<com.tanxe.quran.data.entity.EditionStats> getAllTranslationStats() { return translationDao.getAllEditionStats(); }
 
     // === Tafseer operations ===
     public void insertTafseers(List<Tafseer> tafseers) { tafseerDao.insertAll(tafseers); }
@@ -129,6 +132,8 @@ public class QuranRepository {
     public long getTafseerTextSize(String edition) { return tafseerDao.getEditionTextSize(edition); }
     public int getTafseerSurahCount(String edition) { return tafseerDao.getDistinctSurahCount(edition); }
     public List<Integer> getTafseerDownloadedSurahs(String edition) { return tafseerDao.getDownloadedSurahs(edition); }
+    public List<com.tanxe.quran.data.entity.EditionStats> getAllTafseerStats() { return tafseerDao.getAllEditionStats(); }
+    public List<com.tanxe.quran.data.entity.SurahAyahCount> getTafseerAyahCountsBySurah(String edition) { return tafseerDao.getAyahCountsBySurah(edition); }
 
     // === Word by Word operations ===
     public void insertWords(List<WordByWord> words) { wordByWordDao.insertAll(words); }
@@ -329,6 +334,67 @@ public class QuranRepository {
 
     public void saveSelectedTafseer(String edition) { prefs.edit().putString("selected_tafseer", edition).apply(); }
     public String getSelectedTafseer() { return prefs.getString("selected_tafseer", "ur.ibnkathir"); }
+
+    // === Multi-select translations/tafseers for compare feature ===
+    public Set<String> getSelectedTranslations() {
+        Set<String> stored = prefs.getStringSet("selected_translations", null);
+        if (stored == null) {
+            // Migrate from single-select: include built-in + any previously selected
+            Set<String> defaults = new HashSet<>();
+            defaults.add("ur.jalandhry");
+            String single = getSelectedTranslation();
+            if (single != null && !single.isEmpty()) defaults.add(single);
+            return defaults;
+        }
+        return new HashSet<>(stored); // defensive copy
+    }
+
+    public void saveSelectedTranslations(Set<String> editions) {
+        prefs.edit().putStringSet("selected_translations", new HashSet<>(editions)).apply();
+    }
+
+    public void toggleSelectedTranslation(String edition) {
+        Set<String> current = getSelectedTranslations();
+        if (current.contains(edition)) {
+            current.remove(edition);
+        } else {
+            current.add(edition);
+        }
+        saveSelectedTranslations(current);
+    }
+
+    public boolean isTranslationSelected(String edition) {
+        return getSelectedTranslations().contains(edition);
+    }
+
+    public Set<String> getSelectedTafseers() {
+        Set<String> stored = prefs.getStringSet("selected_tafseers", null);
+        if (stored == null) {
+            Set<String> defaults = new HashSet<>();
+            String single = getSelectedTafseer();
+            if (single != null && !single.isEmpty()) defaults.add(single);
+            return defaults;
+        }
+        return new HashSet<>(stored);
+    }
+
+    public void saveSelectedTafseers(Set<String> editions) {
+        prefs.edit().putStringSet("selected_tafseers", new HashSet<>(editions)).apply();
+    }
+
+    public void toggleSelectedTafseer(String edition) {
+        Set<String> current = getSelectedTafseers();
+        if (current.contains(edition)) {
+            current.remove(edition);
+        } else {
+            current.add(edition);
+        }
+        saveSelectedTafseers(current);
+    }
+
+    public boolean isTafseerSelected(String edition) {
+        return getSelectedTafseers().contains(edition);
+    }
 
     public void saveSelectedWbwLanguage(String lang) { prefs.edit().putString("selected_wbw_lang", lang).apply(); }
     public String getSelectedWbwLanguage() { return prefs.getString("selected_wbw_lang", "ur"); }

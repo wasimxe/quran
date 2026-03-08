@@ -8,25 +8,26 @@ import java.util.List;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
+import androidx.activity.OnBackPressedCallback;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.tanxe.quran.data.repository.QuranRepository;
 import com.tanxe.quran.download.DownloadManager;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.util.Localization;
+import com.tanxe.quran.ui.learn.LearnFragment;
 import com.tanxe.quran.ui.library.LibraryFragment;
 import com.tanxe.quran.ui.reading.ReadingFragment;
 import com.tanxe.quran.ui.search.SearchFragment;
 import com.tanxe.quran.ui.settings.SettingsFragment;
-import com.tanxe.quran.ui.surahindex.SurahIndexFragment;
 
 public class MainActivity extends AppCompatActivity {
     private BottomNavigationView bottomNav;
     private Fragment activeFragment;
     private ReadingFragment readingFragment;
-    private SurahIndexFragment surahIndexFragment;
     private SearchFragment searchFragment;
     private LibraryFragment libraryFragment;
     private SettingsFragment settingsFragment;
+    private int previousNavId = R.id.nav_read;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +37,7 @@ public class MainActivity extends AppCompatActivity {
         applyTheme();
         setupFragments();
         setupBottomNavigation();
+        setupBackPress();
         ensureWbwDownloaded();
     }
 
@@ -58,7 +60,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupFragments() {
         readingFragment = new ReadingFragment();
-        surahIndexFragment = new SurahIndexFragment();
         searchFragment = new SearchFragment();
         libraryFragment = new LibraryFragment();
         settingsFragment = new SettingsFragment();
@@ -69,7 +70,6 @@ public class MainActivity extends AppCompatActivity {
                 .add(R.id.fragment_container, settingsFragment, "settings").hide(settingsFragment)
                 .add(R.id.fragment_container, libraryFragment, "library").hide(libraryFragment)
                 .add(R.id.fragment_container, searchFragment, "search").hide(searchFragment)
-                .add(R.id.fragment_container, surahIndexFragment, "surahs").hide(surahIndexFragment)
                 .add(R.id.fragment_container, readingFragment, "reading")
                 .commit();
     }
@@ -83,12 +83,20 @@ public class MainActivity extends AppCompatActivity {
         localizeNavLabels();
 
         bottomNav.setOnItemSelectedListener(item -> {
-            Fragment selected;
             int id = item.getItemId();
+
+            // Learn tab opens as dialog, doesn't switch fragments
+            if (id == R.id.nav_learn) {
+                LearnFragment learnDialog = new LearnFragment();
+                learnDialog.show(getSupportFragmentManager(), "learn_mode");
+                // Re-select the previous tab after showing dialog
+                bottomNav.post(() -> bottomNav.setSelectedItemId(previousNavId));
+                return false;
+            }
+
+            Fragment selected;
             if (id == R.id.nav_read) {
                 selected = readingFragment;
-            } else if (id == R.id.nav_surahs) {
-                selected = surahIndexFragment;
             } else if (id == R.id.nav_search) {
                 selected = searchFragment;
             } else if (id == R.id.nav_library) {
@@ -99,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
                 return false;
             }
 
+            previousNavId = id;
             getSupportFragmentManager().beginTransaction()
                     .setCustomAnimations(R.anim.fade_in, R.anim.fade_out)
                     .hide(activeFragment)
@@ -106,6 +115,21 @@ public class MainActivity extends AppCompatActivity {
                     .commit();
             activeFragment = selected;
             return true;
+        });
+    }
+
+    private void setupBackPress() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                // If not on Quran (first) tab, go back to it
+                if (activeFragment != readingFragment) {
+                    bottomNav.setSelectedItemId(R.id.nav_read);
+                } else {
+                    // Already on Quran tab — exit app
+                    finish();
+                }
+            }
         });
     }
 
@@ -126,7 +150,7 @@ public class MainActivity extends AppCompatActivity {
     private void localizeNavLabels() {
         String lang = QuranRepository.getInstance(this).getLanguage();
         bottomNav.getMenu().findItem(R.id.nav_read).setTitle(Localization.get(lang, Localization.QURAN));
-        bottomNav.getMenu().findItem(R.id.nav_surahs).setTitle(Localization.get(lang, Localization.SURAHS));
+        bottomNav.getMenu().findItem(R.id.nav_learn).setTitle(Localization.get(lang, Localization.MODE_LEARN));
         bottomNav.getMenu().findItem(R.id.nav_search).setTitle(Localization.get(lang, Localization.SEARCH));
         bottomNav.getMenu().findItem(R.id.nav_library).setTitle(Localization.get(lang, Localization.LIBRARY));
         bottomNav.getMenu().findItem(R.id.nav_more).setTitle(Localization.get(lang, Localization.MORE));
@@ -140,7 +164,6 @@ public class MainActivity extends AppCompatActivity {
         localizeNavLabels();
 
         if (readingFragment != null) readingFragment.applyTheme();
-        if (surahIndexFragment != null) surahIndexFragment.applyTheme();
         if (searchFragment != null) searchFragment.applyTheme();
         if (libraryFragment != null) libraryFragment.applyTheme();
         if (settingsFragment != null) settingsFragment.applyTheme();
@@ -152,8 +175,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void navigateToBookmarks() {
-        bottomNav.setSelectedItemId(R.id.nav_surahs);
-        surahIndexFragment.showBookmarksTab();
+        // Show bookmarks directly from reading fragment
+        bottomNav.setSelectedItemId(R.id.nav_read);
+        readingFragment.showBookmarks();
     }
 
     public void navigateToSearch(String query) {

@@ -39,6 +39,11 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
     // Display modes: "arabic", "translation", "tafseer", "wbw"
     private String displayMode = "translation";
 
+    /** Callback for tap on ayah (activate/highlight only) */
+    public interface OnAyahTapListener {
+        void onAyahTap(int surah, int ayah, int position);
+    }
+
     /** Callback for long-press on ayah */
     public interface OnAyahLongPressListener {
         void onAyahLongPress(int surah, int ayah, int position);
@@ -50,6 +55,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         void onTafseerClick(int surah, int ayah);
     }
 
+    private OnAyahTapListener tapListener;
     private OnAyahLongPressListener longPressListener;
     private OnContentClickListener contentClickListener;
 
@@ -143,6 +149,10 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         loadingSurahs.clear();
     }
 
+    public void setTapListener(OnAyahTapListener listener) {
+        this.tapListener = listener;
+    }
+
     public void setLongPressListener(OnAyahLongPressListener listener) {
         this.longPressListener = listener;
     }
@@ -188,12 +198,18 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         this.arabicFont = font;
     }
 
-    /** Set the currently-playing position and highlight it */
+    /** Set the currently-playing position and highlight it (triggers rebind) */
     public void setPlayingPosition(int position) {
         int oldPos = playingPosition;
         playingPosition = position;
         if (oldPos >= 0) notifyItemChanged(oldPos);
         if (position >= 0) notifyItemChanged(position);
+
+    }
+
+    /** Update internal playing position without triggering rebind — caller handles view updates directly */
+    public void setPlayingPositionSilent(int position) {
+        playingPosition = position;
     }
 
     public int getPlayingPosition() { return playingPosition; }
@@ -238,22 +254,19 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         holder.tvArabic.setTextColor(isPlaying ? cArabicPlaying : cArabic);
         holder.tvArabic.setTypeface(arabicFont);
         holder.tvAyahMarker.setTextColor(cSecondary);
-        holder.tvAyahMarker.setText("\uFD3E " + ayah + " \uFD3F");
+        holder.tvAyahMarker.setText("(" + ayah + ")");
         holder.tvBismillah.setTextColor(cAccent);
         if (arabicFont != null) holder.tvBismillah.setTypeface(arabicFont);
         holder.dividerBottom.setBackgroundColor(cDivider);
         holder.dividerTop.setBackgroundColor(cDivider);
         holder.tvSurahHeader.setTextColor(cAccent);
         holder.tvArabic.setTextSize(arabicFontSize);
+        // Only Arabic text gets expensive justification — translation/tafseer use simple strategy to avoid ANR
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             holder.tvArabic.setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
-            holder.tvTranslation.setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
-            holder.tvExtraContent.setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             holder.tvArabic.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY);
-            holder.tvTranslation.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY);
-            holder.tvExtraContent.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY);
         }
         holder.tvTranslation.setTextSize(translationFontSize);
         holder.tvExtraContent.setTextSize(translationFontSize);
@@ -264,13 +277,16 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         holder.dividerTop.setVisibility(View.GONE);
         holder.tvRukuMarker.setVisibility(View.GONE);
 
-        // Long press
+        holder.tvAyahMarker.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null);
+        // Tap = highlight + compare sheet, Long press = compare sheet (all)
+        holder.container.setClickable(true);
+        holder.container.setLongClickable(true);
+        holder.container.setOnClickListener(v -> {
+            if (tapListener != null) tapListener.onAyahTap(surah, ayah, position);
+        });
         holder.container.setOnLongClickListener(v -> {
-            if (longPressListener != null) {
-                longPressListener.onAyahLongPress(surah, ayah, position);
-                return true;
-            }
-            return false;
+            if (longPressListener != null) longPressListener.onAyahLongPress(surah, ayah, position);
+            return true;
         });
 
         final Typeface transFont = cachedTransFont;
@@ -382,25 +398,18 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
 
         if ("arabic".equals(mode)) {
             holder.tvTranslation.setVisibility(View.GONE);
-            holder.tvTranslation.setOnClickListener(null);
             holder.learningContent.setVisibility(View.GONE);
         } else if ("translation".equals(mode)) {
             holder.tvTranslation.setVisibility(View.VISIBLE);
             holder.tvTranslation.setText(data.translationText);
             holder.tvTranslation.setTextColor(cTranslation);
             holder.tvTranslation.setTypeface(transFont);
-            holder.tvTranslation.setOnClickListener(v -> {
-                if (contentClickListener != null) contentClickListener.onTranslationClick(surah, ayah);
-            });
             holder.learningContent.setVisibility(View.GONE);
         } else if ("tafseer".equals(mode)) {
             holder.tvTranslation.setVisibility(View.VISIBLE);
             holder.tvTranslation.setText(data.translationText);
             holder.tvTranslation.setTextColor(cTranslation);
             holder.tvTranslation.setTypeface(transFont);
-            holder.tvTranslation.setOnClickListener(v -> {
-                if (contentClickListener != null) contentClickListener.onTranslationClick(surah, ayah);
-            });
             holder.learningContent.setVisibility(View.VISIBLE);
             holder.rvWords.setVisibility(View.GONE);
             holder.tvExtraContent.setVisibility(View.VISIBLE);
@@ -408,9 +417,6 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
             holder.tvExtraContent.setText(tafsDisplay);
             holder.tvExtraContent.setTextColor(cSecondary);
             holder.tvExtraContent.setTypeface(tafsFont);
-            holder.tvExtraContent.setOnClickListener(v -> {
-                if (contentClickListener != null) contentClickListener.onTafseerClick(surah, ayah);
-            });
             if (holder.tvExtraLabel != null) {
                 holder.tvExtraLabel.setVisibility(View.VISIBLE);
                 holder.tvExtraLabel.setText("Tafseer");
@@ -430,34 +436,24 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
                                   int surah, int ayah) {
         if ("arabic".equals(mode)) {
             holder.tvTranslation.setVisibility(View.GONE);
-            holder.tvTranslation.setOnClickListener(null);
             holder.learningContent.setVisibility(View.GONE);
         } else if ("translation".equals(mode)) {
             holder.tvTranslation.setVisibility(View.VISIBLE);
             holder.tvTranslation.setText(content);
             holder.tvTranslation.setTextColor(cTranslation);
             holder.tvTranslation.setTypeface(transFont);
-            holder.tvTranslation.setOnClickListener(v -> {
-                if (contentClickListener != null) contentClickListener.onTranslationClick(surah, ayah);
-            });
             holder.learningContent.setVisibility(View.GONE);
         } else if ("tafseer".equals(mode)) {
             holder.tvTranslation.setVisibility(View.VISIBLE);
             holder.tvTranslation.setText(content);
             holder.tvTranslation.setTextColor(cTranslation);
             holder.tvTranslation.setTypeface(transFont);
-            holder.tvTranslation.setOnClickListener(v -> {
-                if (contentClickListener != null) contentClickListener.onTranslationClick(surah, ayah);
-            });
             holder.learningContent.setVisibility(View.VISIBLE);
             holder.rvWords.setVisibility(View.GONE);
             holder.tvExtraContent.setVisibility(View.VISIBLE);
             holder.tvExtraContent.setText(tafseerText);
             holder.tvExtraContent.setTextColor(cSecondary);
             holder.tvExtraContent.setTypeface(tafsFont);
-            holder.tvExtraContent.setOnClickListener(v -> {
-                if (contentClickListener != null) contentClickListener.onTafseerClick(surah, ayah);
-            });
             if (holder.tvExtraLabel != null) {
                 holder.tvExtraLabel.setVisibility(View.VISIBLE);
                 holder.tvExtraLabel.setText("Tafseer");

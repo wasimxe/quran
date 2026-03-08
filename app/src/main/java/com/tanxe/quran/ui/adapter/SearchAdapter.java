@@ -48,6 +48,14 @@ public class SearchAdapter extends RecyclerView.Adapter<SearchAdapter.ViewHolder
         holder.tvArabic.setTextColor(theme.getArabicTextColor());
         holder.tvTranslation.setTextColor(theme.getTranslationTextColor());
 
+        if (holder.itemView instanceof com.google.android.material.card.MaterialCardView) {
+            com.google.android.material.card.MaterialCardView card =
+                    (com.google.android.material.card.MaterialCardView) holder.itemView;
+            card.setCardBackgroundColor(theme.getCardColor());
+            card.setStrokeColor(theme.getDividerColor());
+            card.setStrokeWidth(1);
+        }
+
         holder.itemView.setOnClickListener(v -> listener.onClick(ayah));
     }
 

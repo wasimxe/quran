@@ -43,4 +43,10 @@ public interface TafseerDao {
 
     @Query("SELECT DISTINCT surahNumber FROM tafseers WHERE edition = :edition")
     List<Integer> getDownloadedSurahs(String edition);
+
+    @Query("SELECT edition, COUNT(*) as ayahCount, COUNT(DISTINCT surahNumber) as surahCount, COALESCE(SUM(LENGTH(text)), 0) as textSize FROM tafseers GROUP BY edition")
+    List<com.tanxe.quran.data.entity.EditionStats> getAllEditionStats();
+
+    @Query("SELECT surahNumber, COUNT(*) as cnt FROM tafseers WHERE edition = :edition GROUP BY surahNumber")
+    List<com.tanxe.quran.data.entity.SurahAyahCount> getAyahCountsBySurah(String edition);
 }

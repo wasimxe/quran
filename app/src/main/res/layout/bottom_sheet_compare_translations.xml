@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/sheet_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -15,15 +16,55 @@
         android:background="@drawable/bg_mode_pill"
         android:layout_marginBottom="12dp" />
 
-    <!-- Ayah reference -->
-    <TextView
-        android:id="@+id/tv_ayah_ref"
-        android:layout_width="wrap_content"
+    <!-- Header row: Ayah reference + action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="4dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:layout_marginBottom="4dp">
+
+        <!-- Ayah reference -->
+        <TextView
+            android:id="@+id/tv_ayah_ref"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- Action icon buttons -->
+        <ImageButton
+            android:id="@+id/btn_bookmark"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_bookmark"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:padding="6dp"
+            android:tooltipText="@string/bookmark" />
+
+        <ImageButton
+            android:id="@+id/btn_reading_point"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_my_location"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:padding="6dp"
+            android:tooltipText="@string/resume" />
+
+        <ImageButton
+            android:id="@+id/btn_share"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_share"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:padding="6dp"
+            android:tooltipText="@string/share" />
+    </LinearLayout>
 
     <!-- Arabic text -->
     <TextView
@@ -47,7 +88,7 @@
         android:layout_marginTop="4dp"
         android:layout_marginBottom="4dp" />
 
-    <!-- Filter chips -->
+    <!-- Filter chips: All / Translations / Tafseers -->
     <com.google.android.material.chip.ChipGroup
         android:id="@+id/filter_chips"
         android:layout_width="match_parent"
@@ -55,8 +96,7 @@
         android:paddingHorizontal="20dp"
         android:layout_marginBottom="4dp"
         app:singleSelection="true"
-        app:selectionRequired="true"
-        xmlns:app="http://schemas.android.com/apk/res-auto">
+        app:selectionRequired="true">
 
         <com.google.android.material.chip.Chip
             android:id="@+id/chip_all"

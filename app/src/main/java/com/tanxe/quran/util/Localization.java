@@ -93,8 +93,10 @@ public class Localization {
     public static final int MODE_HAFIZ = 83;
     public static final int ARABIC_FONT = 84;
     public static final int MODE_LEARN = 85;
+    public static final int SELECTED = 86;
+    public static final int DESELECTED = 87;
 
-    private static final int LABEL_COUNT = 86;
+    private static final int LABEL_COUNT = 88;
 
     public static String get(String lang, int key) {
         return getLabels(lang)[key];
@@ -191,6 +193,8 @@ public class Localization {
                     "\u062D\u0627\u0641\u0638", // حافظ
                     "\u0639\u0631\u0628\u06CC \u0641\u0627\u0646\u0679", // عربی فانٹ
                     "\u0633\u06CC\u06A9\u06BE\u06CC\u06BA", // سیکھیں
+                    "\u0645\u0646\u062A\u062E\u0628", // منتخب
+                    "\u063A\u06CC\u0631 \u0645\u0646\u062A\u062E\u0628", // غیر منتخب
                 };
             case "ar":
                 return new String[]{
@@ -280,6 +284,8 @@ public class Localization {
                     "\u062D\u0627\u0641\u0638", // حافظ
                     "\u0627\u0644\u062E\u0637 \u0627\u0644\u0639\u0631\u0628\u064A", // الخط العربي
                     "\u062A\u0639\u0644\u0645", // تعلم
+                    "\u0645\u062E\u062A\u0627\u0631", // مختار
+                    "\u063A\u064A\u0631 \u0645\u062E\u062A\u0627\u0631", // غير مختار
                 };
             case "hi":
                 return new String[]{
@@ -364,6 +370,8 @@ public class Localization {
                     "\u0939\u093E\u0931\u093F\u095B", // हाफ़िज़
                     "\u0905\u0930\u092C\u0940 \u092B\u093C\u0949\u0928\u094D\u091F", // अरबी फ़ॉन्ट
                     "\u0938\u0940\u0916\u0947\u0902", // सीखें
+                    "\u091A\u0941\u0928\u093E \u0917\u092F\u093E", // चुना गया
+                    "\u0905\u091A\u092F\u0928\u093F\u0924", // अचयनित
                 };
             case "tr":
                 return new String[]{
@@ -398,6 +406,8 @@ public class Localization {
                     "Hafiz",
                     "Arap\u00E7a Yaz\u0131 Tipi",
                     "\u00D6\u011Fren", // Öğren
+                    "Se\u00E7ildi",
+                    "Se\u00E7im kald\u0131r\u0131ld\u0131",
                 };
             case "bn":
                 return new String[]{
@@ -482,6 +492,8 @@ public class Localization {
                     "\u09B9\u09BE\u09AB\u09BF\u099C", // হাফিজ
                     "\u0986\u09B0\u09AC\u09BF \u09AB\u09A8\u09CD\u099F", // আরবি ফন্ট
                     "\u09B6\u09BF\u0996\u09C1\u09A8", // শিখুন
+                    "\u09A8\u09BF\u09B0\u09CD\u09AC\u09BE\u099A\u09BF\u09A4", // নির্বাচিত
+                    "\u0985\u09A8\u09BF\u09B0\u09CD\u09AC\u09BE\u099A\u09BF\u09A4", // অনির্বাচিত
                 };
             default: // en, id, ms, fr, de, fa and fallback
                 return new String[]{
@@ -518,6 +530,8 @@ public class Localization {
                     "Hafiz",
                     "Arabic Font",
                     "Learn",
+                    "Selected",
+                    "Deselected",
                 };
         }
     }

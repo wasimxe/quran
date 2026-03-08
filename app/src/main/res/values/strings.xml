@@ -3,6 +3,7 @@
     <string name="app_name">Al-Quran</string>
     <string name="tab_read">Quran</string>
     <string name="tab_surahs">Surahs</string>
+    <string name="tab_learn">Learn</string>
     <string name="tab_search">Search</string>
     <string name="tab_library">Library</string>
     <string name="tab_more">More</string>
