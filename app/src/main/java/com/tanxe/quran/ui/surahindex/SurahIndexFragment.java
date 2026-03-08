@@ -77,7 +77,7 @@ public class SurahIndexFragment extends Fragment {
         theme = ThemeManager.getInstance(requireContext());
 
         try {
-            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/al_mushaf.ttf");
+            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + repository.getSelectedArabicFont());
         } catch (Exception e) {
             arabicFont = Typeface.DEFAULT;
         }

@@ -92,8 +92,9 @@ public class Localization {
     public static final int COMPARE_TRANSLATIONS = 82;
     public static final int MODE_HAFIZ = 83;
     public static final int ARABIC_FONT = 84;
+    public static final int MODE_LEARN = 85;
 
-    private static final int LABEL_COUNT = 85;
+    private static final int LABEL_COUNT = 86;
 
     public static String get(String lang, int key) {
         return getLabels(lang)[key];
@@ -189,6 +190,7 @@ public class Localization {
                     "\u062A\u0631\u0627\u062C\u0645 \u06A9\u0627 \u0645\u0648\u0627\u0632\u0646\u06C1", // تراجم کا موازنہ
                     "\u062D\u0627\u0641\u0638", // حافظ
                     "\u0639\u0631\u0628\u06CC \u0641\u0627\u0646\u0679", // عربی فانٹ
+                    "\u0633\u06CC\u06A9\u06BE\u06CC\u06BA", // سیکھیں
                 };
             case "ar":
                 return new String[]{
@@ -277,6 +279,7 @@ public class Localization {
                     "\u0645\u0642\u0627\u0631\u0646\u0629 \u0627\u0644\u062A\u0631\u062C\u0645\u0627\u062A", // مقارنة الترجمات
                     "\u062D\u0627\u0641\u0638", // حافظ
                     "\u0627\u0644\u062E\u0637 \u0627\u0644\u0639\u0631\u0628\u064A", // الخط العربي
+                    "\u062A\u0639\u0644\u0645", // تعلم
                 };
             case "hi":
                 return new String[]{
@@ -360,6 +363,7 @@ public class Localization {
                     "\u0905\u0928\u0941\u0935\u093E\u0926\u094B\u0902 \u0915\u0940 \u0924\u0941\u0932\u0928\u093E", // अनुवादों की तुलना
                     "\u0939\u093E\u0931\u093F\u095B", // हाफ़िज़
                     "\u0905\u0930\u092C\u0940 \u092B\u093C\u0949\u0928\u094D\u091F", // अरबी फ़ॉन्ट
+                    "\u0938\u0940\u0916\u0947\u0902", // सीखें
                 };
             case "tr":
                 return new String[]{
@@ -393,6 +397,7 @@ public class Localization {
                     "\u00C7evirileri Kar\u015F\u0131la\u015Ft\u0131r",
                     "Hafiz",
                     "Arap\u00E7a Yaz\u0131 Tipi",
+                    "\u00D6\u011Fren", // Öğren
                 };
             case "bn":
                 return new String[]{
@@ -476,6 +481,7 @@ public class Localization {
                     "\u0985\u09A8\u09C1\u09AC\u09BE\u09A6 \u09A4\u09C1\u09B2\u09A8\u09BE", // অনুবাদ তুলনা
                     "\u09B9\u09BE\u09AB\u09BF\u099C", // হাফিজ
                     "\u0986\u09B0\u09AC\u09BF \u09AB\u09A8\u09CD\u099F", // আরবি ফন্ট
+                    "\u09B6\u09BF\u0996\u09C1\u09A8", // শিখুন
                 };
             default: // en, id, ms, fr, de, fa and fallback
                 return new String[]{
@@ -511,6 +517,7 @@ public class Localization {
                     "Compare Translations",
                     "Hafiz",
                     "Arabic Font",
+                    "Learn",
                 };
         }
     }

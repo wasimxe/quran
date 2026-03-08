@@ -112,7 +112,7 @@ public class LearnFragment extends DialogFragment {
         theme = ThemeManager.getInstance(requireContext());
 
         try {
-            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/al_mushaf.ttf");
+            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + repository.getSelectedArabicFont());
         } catch (Exception ignored) {}
 
         initViews(view);
@@ -492,7 +492,22 @@ public class LearnFragment extends DialogFragment {
         }
 
         // Auto-advance to next word
-        navigateWord(1);
+        int newCount = wordListAdapter != null ? wordListAdapter.getFilteredCount() : 0;
+        if (newCount == 0) {
+            // All words in current filter are exhausted
+            showCurrentWord();
+            return;
+        }
+        // Check if the word was removed from filtered list (e.g. "unknown" filter + marked known)
+        WordByWordDao.WordWithTranslation next = wordListAdapter.getWordAt(currentWordIndex);
+        if (next != null && next.arabicWord != null && next.arabicWord.equals(word.arabicWord)) {
+            // Word still in list (filter = "all"), advance normally
+            navigateWord(1);
+        } else {
+            // Word was removed, next word already slid into currentWordIndex
+            if (currentWordIndex >= newCount) currentWordIndex = 0;
+            showCurrentWord();
+        }
     }
 
     private void navigateWord(int delta) {

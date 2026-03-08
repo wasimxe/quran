@@ -14,11 +14,12 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:textDirection="rtl"
-        android:textAlignment="viewStart"
+        android:layoutDirection="rtl"
+        android:textDirection="anyRtl"
+        android:breakStrategy="high_quality"
         android:justificationMode="inter_word"
-        android:includeFontPadding="false"
-        android:elegantTextHeight="false"
+        android:includeFontPadding="true"
+        android:elegantTextHeight="true"
         android:maxLines="16" />
 
 </LinearLayout>

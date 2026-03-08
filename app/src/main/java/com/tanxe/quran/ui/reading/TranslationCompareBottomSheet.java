@@ -32,6 +32,7 @@ public class TranslationCompareBottomSheet extends BottomSheetDialogFragment {
     private String defaultTranslation;
     private Typeface arabicFont;
     private Typeface urduFont;
+    private String initialFilter = "all"; // "all", "translation", "tafseer"
 
     // Loaded entries with their type tag
     private final List<EntryData> allEntries = new ArrayList<>();
@@ -60,6 +61,11 @@ public class TranslationCompareBottomSheet extends BottomSheetDialogFragment {
         this.defaultTranslation = defaultTranslation;
         this.arabicFont = arabicFont;
         this.urduFont = urduFont;
+    }
+
+    /** Set which filter chip to activate on open: "all", "translation", or "tafseer" */
+    public void setInitialFilter(String filter) {
+        this.initialFilter = filter;
     }
 
     @Nullable
@@ -108,13 +114,29 @@ public class TranslationCompareBottomSheet extends BottomSheetDialogFragment {
         chipTrans.setText(Localization.get(appLang, Localization.TRANSLATIONS));
         chipTafs.setText(Localization.get(appLang, Localization.TAFSEERS));
 
-        // Theme chips
-        int chipBg = theme.getModePillColor();
+        // Theme chips with checked/unchecked states
+        int accentColor = theme.getAccentColor();
         int chipTextColor = theme.getPrimaryTextColor();
+        int chipBg = theme.getModePillColor();
+
+        android.content.res.ColorStateList chipBgStates = new android.content.res.ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{accentColor, chipBg}
+        );
+        android.content.res.ColorStateList chipTextStates = new android.content.res.ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{}
+                },
+                new int[]{0xFFFFFFFF, chipTextColor}
+        );
         for (Chip chip : new Chip[]{chipAll, chipTrans, chipTafs}) {
-            chip.setChipBackgroundColorResource(android.R.color.transparent);
-            chip.setTextColor(chipTextColor);
-            chip.setChipStrokeWidth(1f);
+            chip.setChipBackgroundColor(chipBgStates);
+            chip.setTextColor(chipTextStates);
+            chip.setChipStrokeWidth(0f);
         }
 
         ChipGroup filterChips = view.findViewById(R.id.filter_chips);
@@ -126,6 +148,14 @@ public class TranslationCompareBottomSheet extends BottomSheetDialogFragment {
             else if (id == R.id.chip_tafseers) currentFilter = "tafseer";
             renderEntries();
         });
+
+        // Apply initial filter
+        currentFilter = initialFilter;
+        if ("translation".equals(initialFilter)) {
+            chipTrans.setChecked(true);
+        } else if ("tafseer".equals(initialFilter)) {
+            chipTafs.setChecked(true);
+        }
 
         // Load all data on background
         repository.getExecutor().execute(() -> {

@@ -152,6 +152,19 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:background="?attr/selectableItemBackground" />
+
+            <TextView
+                android:id="@+id/btn_mode_learn"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Learn"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:paddingVertical="6dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground" />
         </LinearLayout>
     </LinearLayout>
 
@@ -159,8 +172,12 @@
     <Spinner
         android:id="@+id/spinner_source"
         android:layout_width="0dp"
-        android:layout_height="32dp"
-        android:layout_marginHorizontal="12dp"
+        android:layout_height="36dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="2dp"
+        android:background="@drawable/bg_source_selector"
+        android:dropDownWidth="match_parent"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/header_bar"
         app:layout_constraintStart_toStartOf="parent"
@@ -331,18 +348,6 @@
                 android:background="#44FFFFFF"
                 android:layout_marginHorizontal="3dp" />
 
-            <!-- Learn mode -->
-            <ImageButton
-                android:id="@+id/fab_learn"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:src="@drawable/ic_learn"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Learn Mode"
-                android:tooltipText="Learn Vocabulary"
-                android:scaleType="centerInside"
-                android:padding="4dp" />
-
             <!-- Fullscreen -->
             <ImageButton
                 android:id="@+id/btn_fullscreen"
@@ -353,8 +358,38 @@
                 android:contentDescription="Full Screen"
                 android:tooltipText="Full Screen"
                 android:scaleType="centerInside"
-                android:padding="4dp"
-                android:layout_marginStart="2dp" />
+                android:padding="4dp" />
+
+            <!-- Divider -->
+            <View
+                android:layout_width="1dp"
+                android:layout_height="20dp"
+                android:background="#44FFFFFF"
+                android:layout_marginHorizontal="3dp" />
+
+            <!-- Font size decrease -->
+            <TextView
+                android:id="@+id/btn_font_decrease"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:gravity="center"
+                android:text="A-"
+                android:textSize="12sp"
+                android:contentDescription="Decrease Font"
+                android:tooltipText="Decrease Font Size"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <!-- Font size increase -->
+            <TextView
+                android:id="@+id/btn_font_increase"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:gravity="center"
+                android:text="A+"
+                android:textSize="12sp"
+                android:contentDescription="Increase Font"
+                android:tooltipText="Increase Font Size"
+                android:background="?attr/selectableItemBackgroundBorderless" />
         </LinearLayout>
     </LinearLayout>
 

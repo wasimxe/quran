@@ -55,10 +55,12 @@ drawable bg_juz_badge
 drawable bg_language_chip
 drawable bg_mode_pill
 drawable bg_mode_pill_active
+drawable bg_source_selector
 drawable bg_surah_circle
 drawable bg_surah_number_circle
 drawable card_background
 drawable divider_ornamental
+drawable ic_arrow_drop_down
 drawable ic_bookmark
 drawable ic_bookmark_filled
 drawable ic_check_circle
@@ -109,10 +111,13 @@ id btn_delete_bookmark
 id btn_dont_know
 id btn_download_action
 id btn_exit_fullscreen
+id btn_font_decrease
+id btn_font_increase
 id btn_fullscreen
 id btn_know
 id btn_mode_arabic
 id btn_mode_hafiz
+id btn_mode_learn
 id btn_mode_tafseer
 id btn_mode_translation
 id btn_mode_wbw
@@ -153,7 +158,6 @@ id download_progress
 id edition_item_container
 id et_search
 id et_surah_search
-id fab_learn
 id fab_reading_point
 id filter_chips
 id floating_toolbar
@@ -331,6 +335,8 @@ layout item_surah
 layout item_surah_index
 layout item_word
 layout item_word_frequency
+layout spinner_source_dropdown_item
+layout spinner_source_item
 menu bottom_nav_menu
 mipmap ic_launcher
 string about

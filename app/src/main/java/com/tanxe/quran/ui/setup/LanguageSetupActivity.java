@@ -55,7 +55,7 @@ public class LanguageSetupActivity extends AppCompatActivity {
         // Set bismillah font
         TextView tvBismillah = findViewById(R.id.tv_bismillah);
         try {
-            Typeface arabicFont = Typeface.createFromAsset(getAssets(), "fonts/al_mushaf.ttf");
+            Typeface arabicFont = Typeface.createFromAsset(getAssets(), "fonts/" + QuranRepository.getInstance(this).getSelectedArabicFont());
             tvBismillah.setTypeface(arabicFont);
         } catch (Exception e) {
             // Use default font

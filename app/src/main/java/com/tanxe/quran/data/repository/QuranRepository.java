@@ -383,6 +383,6 @@ public class QuranRepository {
     public boolean isEditionCatalogLoaded() { return prefs.getBoolean("edition_catalog_loaded", false); }
     public void setEditionCatalogLoaded(boolean loaded) { prefs.edit().putBoolean("edition_catalog_loaded", loaded).apply(); }
 
-    public String getSelectedArabicFont() { return prefs.getString("arabic_font", "indopak.ttf"); }
+    public String getSelectedArabicFont() { return prefs.getString("arabic_font", "pdms_saleem.ttf"); }
     public void saveSelectedArabicFont(String fontFile) { prefs.edit().putString("arabic_font", fontFile).apply(); }
 }

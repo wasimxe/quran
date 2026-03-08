@@ -141,14 +141,42 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
         holder.tvMushafText.setTextColor(theme.getArabicTextColor());
         if (arabicFont != null) holder.tvMushafText.setTypeface(arabicFont);
         holder.tvMushafText.setTextSize(arabicFontSize);
-        holder.tvMushafText.setElegantTextHeight(false);
-        holder.tvMushafText.setIncludeFontPadding(false);
-        holder.tvMushafText.setLineSpacing(0f, 0.78f);
+        holder.tvMushafText.setElegantTextHeight(true);
+        holder.tvMushafText.setIncludeFontPadding(true);
         holder.tvMushafText.setTextIsSelectable(false);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            holder.tvMushafText.setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            holder.tvMushafText.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY);
+        }
         holder.dividerBottom.setBackgroundColor(theme.getDividerColor());
         holder.dividerTop.setBackgroundColor(theme.getDividerColor());
-        holder.tvMushafText.setMovementMethod(LinkMovementMethod.getInstance());
+        // Use OnTouchListener instead of LinkMovementMethod — LMM breaks justification
+        holder.tvMushafText.setMovementMethod(null);
         holder.tvMushafText.setHighlightColor(0x00000000);
+        holder.tvMushafText.setOnTouchListener((v, event) -> {
+            if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
+                TextView tv = (TextView) v;
+                android.text.Layout layout = tv.getLayout();
+                if (layout != null) {
+                    int x = (int) event.getX() - tv.getTotalPaddingLeft() + tv.getScrollX();
+                    int y = (int) event.getY() - tv.getTotalPaddingTop() + tv.getScrollY();
+                    int line = layout.getLineForVertical(y);
+                    int offset = layout.getOffsetForHorizontal(line, x);
+                    CharSequence text = tv.getText();
+                    if (text instanceof android.text.Spanned) {
+                        android.text.style.ClickableSpan[] spans =
+                                ((android.text.Spanned) text).getSpans(offset, offset, android.text.style.ClickableSpan.class);
+                        if (spans.length > 0) {
+                            spans[0].onClick(tv);
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        });
 
         // Bismillah visibility (known statically)
         if (surah != 1 && surah != 9) {

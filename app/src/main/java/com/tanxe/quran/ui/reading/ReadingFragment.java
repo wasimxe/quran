@@ -10,7 +10,6 @@ import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsetsController;
@@ -67,19 +66,20 @@ public class ReadingFragment extends Fragment {
     private ViewPager2 hafizPager;
     private HafizPageAdapter hafizAdapter;
 
-    // Pinch-to-zoom
-    private ScaleGestureDetector scaleGestureDetector;
+    // Font size controls
     private static final float MIN_ARABIC_SP = 16f;
     private static final float MAX_ARABIC_SP = 60f;
+    private static final float FONT_STEP = 2f;
     private float currentArabicSize;
     private float currentTransSize;
+    private TextView btnFontDecrease, btnFontIncrease;
 
     // Header views
     private TextView tvSurahName, tvAyahCounter, tvJuzBadge;
     private ImageButton btnBookmark;
 
     // Display mode buttons (instant switching)
-    private TextView btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw, btnModeHafiz;
+    private TextView btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw, btnModeHafiz, btnModeLearn;
 
     // Source spinner
     private Spinner spinnerSource;
@@ -127,7 +127,8 @@ public class ReadingFragment extends Fragment {
         audioPlayer = AudioPlayerManager.getInstance(requireContext());
 
         try {
-            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/indopak.ttf");
+            String fontFile = repository.getSelectedArabicFont();
+            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + fontFile);
         } catch (Exception e) {
             arabicFont = Typeface.DEFAULT;
         }
@@ -167,7 +168,6 @@ public class ReadingFragment extends Fragment {
         if (displayMode == null || displayMode.isEmpty()) displayMode = "translation";
 
         setupRecyclerView();
-        setupPinchToZoom();
         setupGestures(view);
         setupAudioCallback();
         updateModeButtons();
@@ -196,6 +196,7 @@ public class ReadingFragment extends Fragment {
         btnModeTafseer = view.findViewById(R.id.btn_mode_tafseer);
         btnModeWbw = view.findViewById(R.id.btn_mode_wbw);
         btnModeHafiz = view.findViewById(R.id.btn_mode_hafiz);
+        btnModeLearn = view.findViewById(R.id.btn_mode_learn);
 
         // Source spinner
         spinnerSource = view.findViewById(R.id.spinner_source);
@@ -247,6 +248,11 @@ public class ReadingFragment extends Fragment {
         btnModeTafseer.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: tafseer"); switchDisplayMode("tafseer"); });
         btnModeWbw.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: wbw"); switchDisplayMode("wbw"); });
         btnModeHafiz.setOnClickListener(v -> { android.util.Log.d("ReadingFragment", "MODE CLICK: hafiz"); switchDisplayMode("hafiz"); });
+        btnModeLearn.setClickable(true);
+        btnModeLearn.setOnClickListener(v -> {
+            LearnFragment learnDialog = new LearnFragment();
+            learnDialog.show(getChildFragmentManager(), "learn_mode");
+        });
 
         // Toolbar buttons
         btnPrevious.setOnClickListener(v -> navigatePrev());
@@ -285,13 +291,6 @@ public class ReadingFragment extends Fragment {
             }
         });
 
-        // Learn Mode button (in toolbar)
-        ImageButton btnLearn = view.findViewById(R.id.fab_learn);
-        btnLearn.setOnClickListener(v -> {
-            LearnFragment learnDialog = new LearnFragment();
-            learnDialog.show(getChildFragmentManager(), "learn_mode");
-        });
-
         // Fullscreen button
         btnFullscreen = view.findViewById(R.id.btn_fullscreen);
         btnFullscreen.setOnClickListener(v -> {
@@ -302,6 +301,12 @@ public class ReadingFragment extends Fragment {
         // Floating exit fullscreen button (visible only in fullscreen mode)
         btnExitFullscreen = view.findViewById(R.id.btn_exit_fullscreen);
         btnExitFullscreen.setOnClickListener(v -> exitFullscreen());
+
+        // Font size +/- buttons
+        btnFontDecrease = view.findViewById(R.id.btn_font_decrease);
+        btnFontIncrease = view.findViewById(R.id.btn_font_increase);
+        btnFontDecrease.setOnClickListener(v -> changeFontSize(-FONT_STEP));
+        btnFontIncrease.setOnClickListener(v -> changeFontSize(FONT_STEP));
     }
 
     private void switchDisplayMode(String mode) {
@@ -395,9 +400,10 @@ public class ReadingFragment extends Fragment {
         btnModeTafseer.setText(Localization.get(lang, Localization.MODE_TAFSEER));
         btnModeWbw.setText(Localization.get(lang, Localization.MODE_WBW));
         btnModeHafiz.setText(Localization.get(lang, Localization.MODE_HAFIZ));
+        btnModeLearn.setText(Localization.get(lang, Localization.MODE_LEARN));
 
-        // Reset all buttons to inactive style
-        TextView[] allBtns = {btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw, btnModeHafiz};
+        // Reset all buttons to inactive style (Learn is always inactive since it opens a dialog)
+        TextView[] allBtns = {btnModeArabic, btnModeTranslation, btnModeTafseer, btnModeWbw, btnModeHafiz, btnModeLearn};
         for (TextView btn : allBtns) {
             btn.setBackgroundColor(android.graphics.Color.TRANSPARENT);
             btn.setTextColor(theme.getSecondaryTextColor());
@@ -497,12 +503,13 @@ public class ReadingFragment extends Fragment {
                     sourceIdentifiers = finalIds;
                     spinnerInitializing = true;
                     ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(requireContext(),
-                            android.R.layout.simple_spinner_dropdown_item, finalNames) {
+                            R.layout.spinner_source_item, android.R.id.text1, finalNames) {
                         @Override
                         public View getView(int pos, View convertView, android.view.ViewGroup parent) {
                             View view = super.getView(pos, convertView, parent);
                             if (view instanceof TextView) {
-                                ((TextView) view).setTextColor(theme.getPrimaryTextColor());
+                                TextView tv = (TextView) view;
+                                tv.setTextColor(theme.getAccentColor());
                             }
                             return view;
                         }
@@ -510,12 +517,18 @@ public class ReadingFragment extends Fragment {
                         public View getDropDownView(int pos, View convertView, android.view.ViewGroup parent) {
                             View view = super.getDropDownView(pos, convertView, parent);
                             if (view instanceof TextView) {
-                                ((TextView) view).setTextColor(theme.getPrimaryTextColor());
-                                view.setBackgroundColor(theme.getSurfaceColor());
+                                TextView tv = (TextView) view;
+                                tv.setTextColor(theme.getPrimaryTextColor());
+                                tv.setBackgroundColor(theme.getSurfaceColor());
+                                // Highlight selected item
+                                if (pos == spinnerSource.getSelectedItemPosition()) {
+                                    tv.setTextColor(theme.getAccentColor());
+                                }
                             }
                             return view;
                         }
                     };
+                    spinnerAdapter.setDropDownViewResource(R.layout.spinner_source_dropdown_item);
                     spinnerSource.setAdapter(spinnerAdapter);
                     spinnerSource.setSelection(finalSelected);
                     spinnerSource.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -634,6 +647,16 @@ public class ReadingFragment extends Fragment {
         pagerAdapter = new AyahPagerAdapter(repository, theme, arabicFont, urduFont);
         pagerAdapter.setDisplayMode(displayMode);
         pagerAdapter.setLongPressListener((surah, ayah, position) -> showAyahActionsSheet(surah, ayah, position));
+        pagerAdapter.setContentClickListener(new AyahPagerAdapter.OnContentClickListener() {
+            @Override
+            public void onTranslationClick(int surah, int ayah) {
+                openCompareSheet(surah, ayah, "translation");
+            }
+            @Override
+            public void onTafseerClick(int surah, int ayah) {
+                openCompareSheet(surah, ayah, "tafseer");
+            }
+        });
         // Prime the preload cache for the initial position
         pagerAdapter.preloadAround(AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah));
 
@@ -694,36 +717,15 @@ public class ReadingFragment extends Fragment {
         updateHeader();
     }
 
-    private void setupPinchToZoom() {
-        scaleGestureDetector = new ScaleGestureDetector(requireContext(),
-                new ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                    @Override
-                    public boolean onScale(ScaleGestureDetector detector) {
-                        if ("hafiz".equals(displayMode)) return false;
-                        float factor = detector.getScaleFactor();
-                        float newArabic = Math.max(MIN_ARABIC_SP, Math.min(MAX_ARABIC_SP, currentArabicSize * factor));
-                        float ratio = currentTransSize / currentArabicSize;
-                        float newTrans = newArabic * ratio;
-
-                        currentArabicSize = newArabic;
-                        currentTransSize = newTrans;
-                        pagerAdapter.updateFontSize(currentArabicSize, currentTransSize);
-                        if (mushafAdapter != null) mushafAdapter.updateFontSize(currentArabicSize);
-                        if (hafizAdapter != null) hafizAdapter.updateFontSize(currentArabicSize);
-                        return true;
-                    }
-
-                    @Override
-                    public void onScaleEnd(ScaleGestureDetector detector) {
-                        repository.setArabicFontSize(currentArabicSize);
-                        repository.setTranslationFontSize(currentTransSize);
-                    }
-                });
-
-        recyclerView.setOnTouchListener((v, event) -> {
-            scaleGestureDetector.onTouchEvent(event);
-            return scaleGestureDetector.isInProgress();
-        });
+    private void changeFontSize(float delta) {
+        float ratio = currentTransSize / Math.max(currentArabicSize, 1f);
+        currentArabicSize = Math.max(MIN_ARABIC_SP, Math.min(MAX_ARABIC_SP, currentArabicSize + delta));
+        currentTransSize = currentArabicSize * ratio;
+        pagerAdapter.updateFontSize(currentArabicSize, currentTransSize);
+        if (mushafAdapter != null) mushafAdapter.updateFontSize(currentArabicSize);
+        if (hafizAdapter != null) hafizAdapter.updateFontSize(currentArabicSize);
+        repository.setArabicFontSize(currentArabicSize);
+        repository.setTranslationFontSize(currentTransSize);
     }
 
     private void setupGestures(View view) {
@@ -845,17 +847,42 @@ public class ReadingFragment extends Fragment {
     }
 
     private void navigateNext() {
-        int firstVisible = layoutManager.findFirstVisibleItemPosition();
-        if (firstVisible < QuranDataParser.TOTAL_AYAHS - 1) {
-            recyclerView.smoothScrollToPosition(firstVisible + 1);
+        int nextAyah = currentAyah + 1;
+        int nextSurah = currentSurah;
+        int ayahCount = QuranDataParser.SURAH_AYAH_COUNT[currentSurah - 1];
+        if (nextAyah > ayahCount) {
+            if (nextSurah >= 114) return;
+            nextSurah++;
+            nextAyah = 1;
         }
+        currentSurah = nextSurah;
+        currentAyah = nextAyah;
+        navigateToAyah(currentSurah, currentAyah);
+        highlightActiveAyah();
     }
 
     private void navigatePrev() {
-        int firstVisible = layoutManager.findFirstVisibleItemPosition();
-        if (firstVisible > 0) {
-            recyclerView.smoothScrollToPosition(firstVisible - 1);
+        int prevAyah = currentAyah - 1;
+        int prevSurah = currentSurah;
+        if (prevAyah < 1) {
+            if (prevSurah <= 1) return;
+            prevSurah--;
+            prevAyah = QuranDataParser.SURAH_AYAH_COUNT[prevSurah - 1];
         }
+        currentSurah = prevSurah;
+        currentAyah = prevAyah;
+        navigateToAyah(currentSurah, currentAyah);
+        highlightActiveAyah();
+    }
+
+    private void highlightActiveAyah() {
+        if ("arabic".equals(displayMode) && mushafAdapter != null) {
+            mushafAdapter.setHighlightedAyah(currentSurah, currentAyah);
+        } else if (!"hafiz".equals(displayMode)) {
+            int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
+            pagerAdapter.setPlayingPosition(pos);
+        }
+        updateHeader();
     }
 
     private void loadRandom() {
@@ -1136,6 +1163,23 @@ public class ReadingFragment extends Fragment {
         });
     }
 
+    private void openCompareSheet(int surah, int ayah, String initialFilter) {
+        repository.getExecutor().execute(() -> {
+            com.tanxe.quran.data.entity.Ayah ayahData = repository.getAyah(surah, ayah);
+            if (getActivity() == null) return;
+            requireActivity().runOnUiThread(() -> {
+                String surahName = ayahData != null ? ayahData.surahNameEn : "";
+                TranslationCompareBottomSheet compareSheet = new TranslationCompareBottomSheet();
+                compareSheet.setData(surah, ayah, surahName,
+                        ayahData != null ? ayahData.arabicText : "",
+                        ayahData != null ? ayahData.defaultTranslation : "",
+                        arabicFont, urduFont);
+                compareSheet.setInitialFilter(initialFilter);
+                compareSheet.show(getChildFragmentManager(), "compare_translations");
+            });
+        });
+    }
+
     private void enableTextSelectionAt(int position) {
         if (recyclerView == null) return;
         // Delay to let bottom sheet dismiss before enabling selection
@@ -1334,7 +1378,16 @@ public class ReadingFragment extends Fragment {
 
         // Source spinner theming
         if (spinnerSource != null) {
-            spinnerSource.setPopupBackgroundDrawable(new android.graphics.drawable.ColorDrawable(theme.getSurfaceColor()));
+            GradientDrawable selectorBg = new GradientDrawable();
+            selectorBg.setColor(theme.getModePillColor());
+            selectorBg.setCornerRadius(48);
+            selectorBg.setStroke(1, theme.getDividerColor());
+            spinnerSource.setBackground(selectorBg);
+
+            GradientDrawable popupBg = new GradientDrawable();
+            popupBg.setColor(theme.getSurfaceColor());
+            popupBg.setCornerRadius(32);
+            spinnerSource.setPopupBackgroundDrawable(popupBg);
             updateSourceSpinner(); // rebuild adapter with current theme colors
         }
 
@@ -1369,19 +1422,21 @@ public class ReadingFragment extends Fragment {
         btnRandom.setColorFilter(iconColor);
         btnBookmark.setColorFilter(theme.getAccentColor());
 
-        // Reading point & Learn button tints
+        // Reading point button tint
         ImageButton btnRP = getView().findViewById(R.id.fab_reading_point);
-        ImageButton btnLrn = getView().findViewById(R.id.fab_learn);
         if (btnRP != null) btnRP.setColorFilter(theme.getAccentColor());
-        if (btnLrn != null) btnLrn.setColorFilter(theme.getAccentColor());
         if (btnFullscreen != null) btnFullscreen.setColorFilter(theme.getAccentColor());
 
         if (btnSpeed != null) btnSpeed.setTextColor(theme.getAccentColor());
+        if (btnFontDecrease != null) btnFontDecrease.setTextColor(theme.getAccentColor());
+        if (btnFontIncrease != null) btnFontIncrease.setTextColor(theme.getAccentColor());
+        if (btnModeLearn != null) btnModeLearn.setTextColor(theme.getSecondaryTextColor());
         if (tvReciterName != null) tvReciterName.setTextColor(theme.getSecondaryTextColor());
 
         // Reload arabic font
         try {
-            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/indopak.ttf");
+            String fontFile = repository.getSelectedArabicFont();
+            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + fontFile);
         } catch (Exception e) {
             arabicFont = Typeface.DEFAULT;
         }

@@ -34,7 +34,7 @@ public class QuranDataParser {
                     int ayahNum = Integer.parseInt(parts[1].trim());
                     String nameEn = parts[2].trim();
                     String nameAr = parts[3].trim();
-                    String arabicText = stripBom(parts[4]).trim();
+                    String arabicText = stripInvisibleChars(stripBom(parts[4])).trim();
                     String urduTranslation = parts[5].trim();
 
                     Ayah ayah = new Ayah(surahNum, ayahNum, nameEn, nameAr, arabicText, urduTranslation);
@@ -56,6 +56,15 @@ public class QuranDataParser {
             return s.substring(1);
         }
         return s;
+    }
+
+    /** Strip invisible Unicode control chars that break Arabic text rendering */
+    private static String stripInvisibleChars(String s) {
+        if (s == null) return s;
+        return s.replace("\u200F", "")  // Right-to-Left Mark
+                .replace("\u200B", "")  // Zero-Width Space
+                .replace("\u200E", "")  // Left-to-Right Mark
+                .replace("\uFEFF", ""); // BOM / Zero-Width No-Break Space
     }
 
     // Surah info: number of ayahs per surah

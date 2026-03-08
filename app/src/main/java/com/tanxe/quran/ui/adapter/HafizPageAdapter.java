@@ -295,7 +295,9 @@ public class HafizPageAdapter extends RecyclerView.Adapter<HafizPageAdapter.Page
                 StaticLayout layout = StaticLayout.Builder
                         .obtain(text, 0, text.length(), tp, widthPx)
                         .setLineSpacing(0f, LINE_SPACING_MULT)
-                        .setIncludePad(false)
+                        .setIncludePad(true)
+                        .setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY)
+                        .setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD)
                         .build();
                 int lc = layout.getLineCount();
                 minLines = Math.min(minLines, lc);
@@ -336,11 +338,17 @@ public class HafizPageAdapter extends RecyclerView.Adapter<HafizPageAdapter.Page
         holder.container.setBackgroundColor(theme.getBackgroundColor());
         holder.tvPageContent.setTextColor(theme.getArabicTextColor());
         if (arabicFont != null) holder.tvPageContent.setTypeface(arabicFont);
-        holder.tvPageContent.setIncludeFontPadding(false);
-        holder.tvPageContent.setElegantTextHeight(false);
+        holder.tvPageContent.setIncludeFontPadding(true);
+        holder.tvPageContent.setElegantTextHeight(true);
         holder.tvPageContent.setLineSpacing(0f, LINE_SPACING_MULT);
         holder.tvPageContent.setMaxLines(LINES_PER_PAGE);
         holder.tvPageContent.setText("");
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            holder.tvPageContent.setJustificationMode(android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD);
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            holder.tvPageContent.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_HIGH_QUALITY);
+        }
 
         if (fontCalibrated && cachedFontSizeSp > 0) {
             holder.tvPageContent.setTextSize(TypedValue.COMPLEX_UNIT_SP, cachedFontSizeSp);
