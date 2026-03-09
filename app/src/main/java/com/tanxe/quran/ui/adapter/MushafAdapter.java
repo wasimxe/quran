@@ -266,7 +266,8 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
 
             for (int i = 0; i < ayahs.size(); i++) {
                 Ayah ayah = ayahs.get(i);
-                String text = ayah.arabicText.replaceAll("[\\r\\n]+", " ").trim();
+                String text = com.tanxe.quran.util.QuranDataParser.separateWaqfMarks(
+                        ayah.arabicText.replaceAll("[\\r\\n]+", " ").trim());
 
                 if (ayah.ayahNumber == 1 && surah != 1 && surah != 9) {
                     text = stripBismillah(text);

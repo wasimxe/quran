@@ -61,10 +61,29 @@ public class QuranDataParser {
     /** Strip invisible Unicode control chars that break Arabic text rendering */
     private static String stripInvisibleChars(String s) {
         if (s == null) return s;
-        return s.replace("\u200F", "")  // Right-to-Left Mark
-                .replace("\u200B", "")  // Zero-Width Space
-                .replace("\u200E", "")  // Left-to-Right Mark
-                .replace("\uFEFF", ""); // BOM / Zero-Width No-Break Space
+        s = s.replace("\u200F", "")  // Right-to-Left Mark
+             .replace("\u200B", "")  // Zero-Width Space
+             .replace("\u200E", "")  // Left-to-Right Mark
+             .replace("\uFEFF", ""); // BOM / Zero-Width No-Break Space
+        // Separate consecutive waqf marks with a hair space to prevent overlap
+        return separateWaqfMarks(s);
+    }
+
+    /** Insert hair space (thinnest space) between consecutive waqf marks to prevent overlap */
+    public static String separateWaqfMarks(String s) {
+        if (s == null || s.isEmpty()) return s;
+        StringBuilder sb = new StringBuilder(s.length() + 20);
+        boolean prevWasWaqf = false;
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            boolean isWaqf = ch >= '\u06D6' && ch <= '\u06DC';
+            if (isWaqf && prevWasWaqf) {
+                sb.append('\u2002'); // en space — 1/2 em separator
+            }
+            sb.append(ch);
+            prevWasWaqf = isWaqf;
+        }
+        return sb.toString();
     }
 
     // Surah info: number of ayahs per surah

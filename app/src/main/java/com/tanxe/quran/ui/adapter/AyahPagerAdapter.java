@@ -387,7 +387,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
             holder.itemView.post(() -> {
                 if (holder.bindGeneration != generation) return;
 
-                holder.tvArabic.setText(ayahData.arabicText);
+                holder.tvArabic.setText(com.tanxe.quran.util.QuranDataParser.separateWaqfMarks(ayahData.arabicText));
 
                 if (ayah == 1) {
                     holder.tvSurahHeader.setText(surah + ". " + ayahData.surahNameEn + " (" + ayahData.surahNameAr + ")");
@@ -415,7 +415,7 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
     private void bindAyahSync(AyahViewHolder holder, BindData data, int surah, int ayah,
                               String mode, Typeface transFont, Typeface tafsFont) {
         Ayah a = data.ayah;
-        holder.tvArabic.setText(a.arabicText);
+        holder.tvArabic.setText(com.tanxe.quran.util.QuranDataParser.separateWaqfMarks(a.arabicText));
 
         if (ayah == 1) {
             holder.tvSurahHeader.setText(surah + ". " + a.surahNameEn + " (" + a.surahNameAr + ")");
