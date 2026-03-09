@@ -4,7 +4,9 @@ import android.app.AlertDialog;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -116,6 +118,35 @@ public class LibraryFragment extends Fragment {
             }
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
             @Override public void onTabReselected(TabLayout.Tab tab) {}
+        });
+
+        // Swipe left/right on edition list to switch category tabs
+        GestureDetector tabSwipeDetector = new GestureDetector(requireContext(),
+                new GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onDown(MotionEvent e) { return true; }
+                    @Override
+                    public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                        if (e1 == null || e2 == null) return false;
+                        float diffX = e2.getX() - e1.getX();
+                        float diffY = e2.getY() - e1.getY();
+                        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 100 && Math.abs(velocityX) > 100) {
+                            int current = tabCategory.getSelectedTabPosition();
+                            int next = diffX < 0 ? current + 1 : current - 1;
+                            if (next >= 0 && next < tabCategory.getTabCount()) {
+                                tabCategory.selectTab(tabCategory.getTabAt(next));
+                            }
+                            return true;
+                        }
+                        return false;
+                    }
+                });
+        rvEditions.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
+            @Override
+            public boolean onInterceptTouchEvent(@NonNull RecyclerView rv, @NonNull MotionEvent e) {
+                tabSwipeDetector.onTouchEvent(e);
+                return false;
+            }
         });
 
         // Language chips
@@ -307,6 +338,8 @@ public class LibraryFragment extends Fragment {
             {"qc.ur.bayanulquran", "Bayan ul Quran", "ur", "Urdu", "159"},
             {"qc.ur.fizilal", "Fi Zilal al-Quran", "ur", "Urdu", "157"},
             {"qc.ur.tazkirulquran", "Tazkir ul Quran", "ur", "Urdu", "818"},
+            {"qc.ur.tafheem", "Tafheem ul Quran (Maududi)", "ur", "Urdu", "97"},
+            {"qc.ur.usmani", "Tafsir-e-Usmani", "ur", "Urdu", "151"},
             {"qc.bn.ibnkathir", "Tafseer Ibn Kathir", "bn", "Bengali", "164"},
             {"qc.bn.ahsanulbayaan", "Tafsir Ahsanul Bayaan", "bn", "Bengali", "165"},
             {"qc.bn.abubakrzakaria", "Tafsir Abu Bakr Zakaria", "bn", "Bengali", "166"},
@@ -612,7 +645,10 @@ public class LibraryFragment extends Fragment {
             }
         } else {
             int qcResourceId = getQuranComResourceId(id);
-            if (qcResourceId > 0) {
+            if (qcResourceId > 0 && isQuranComTranslationAsTafseer(id)) {
+                dm.downloadTafseerFromQuranComTranslation(id, qcResourceId, edition.language,
+                        status -> updateDownloadProgress(id, status));
+            } else if (qcResourceId > 0) {
                 dm.downloadTafseerFromQuranCom(id, qcResourceId, edition.language,
                         status -> updateDownloadProgress(id, status));
             } else {
@@ -645,7 +681,20 @@ public class LibraryFragment extends Fragment {
             case "qc.ar.baghawi": return 94;
             case "qc.ru.saddi": return 170;
             case "qc.ku.rebar": return 804;
+            case "qc.ur.tafheem": return 97;
+            case "qc.ur.usmani": return 151;
             default: return -1;
+        }
+    }
+
+    /** Check if this tafseer should be downloaded from quran.com translations API (not tafseers API) */
+    private boolean isQuranComTranslationAsTafseer(String identifier) {
+        switch (identifier) {
+            case "qc.ur.tafheem":
+            case "qc.ur.usmani":
+                return true;
+            default:
+                return false;
         }
     }
 

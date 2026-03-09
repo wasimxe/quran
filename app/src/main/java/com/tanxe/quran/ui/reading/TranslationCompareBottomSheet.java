@@ -1,10 +1,13 @@
 package com.tanxe.quran.ui.reading;
 
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
@@ -16,6 +19,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
@@ -48,6 +52,7 @@ public class TranslationCompareBottomSheet extends BottomSheetDialogFragment {
     private ThemeManager theme;
     private boolean isRtl;
     private String currentFilter = "all";
+    private GestureDetector swipeDetector;
 
     private static class EntryData {
         final String label;
@@ -78,6 +83,43 @@ public class TranslationCompareBottomSheet extends BottomSheetDialogFragment {
 
     public void setOnDismissListener(Runnable listener) {
         this.onDismissListener = listener;
+    }
+
+    @NonNull
+    @Override
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        swipeDetector = new GestureDetector(requireContext(), new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDown(MotionEvent e) { return true; }
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 == null || e2 == null) return false;
+                float diffX = e2.getX() - e1.getX();
+                float diffY = e2.getY() - e1.getY();
+                if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 100 && Math.abs(velocityX) > 100) {
+                    String[] filters = {"all", "translation", "tafseer"};
+                    int[] chipIds = {R.id.chip_all, R.id.chip_translations, R.id.chip_tafseers};
+                    int idx = 0;
+                    for (int i = 0; i < filters.length; i++) {
+                        if (filters[i].equals(currentFilter)) { idx = i; break; }
+                    }
+                    int next = diffX < 0 ? idx + 1 : idx - 1;
+                    if (next >= 0 && next < chipIds.length && getView() != null) {
+                        ((Chip) getView().findViewById(chipIds[next])).setChecked(true);
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        return new BottomSheetDialog(requireContext(), getTheme()) {
+            @Override
+            public boolean dispatchTouchEvent(MotionEvent event) {
+                swipeDetector.onTouchEvent(event);
+                return super.dispatchTouchEvent(event);
+            }
+        };
     }
 
     @Nullable

@@ -1,5 +1,9 @@
 [
     {
+        "merged": "com.tanxe.quran.app-merged_res-51:/layout_item_ayah_page.xml.flat",
+        "source": "com.tanxe.quran.app-main-53:/layout/item_ayah_page.xml"
+    },
+    {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_bg_download_item.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\bg_download_item.xml"
     },
@@ -260,10 +264,6 @@
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_arrow_drop_down.xml"
     },
     {
-        "merged": "com.tanxe.quran.app-merged_res-51:/layout_fragment_learn.xml.flat",
-        "source": "com.tanxe.quran.app-main-53:/layout/fragment_learn.xml"
-    },
-    {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\layout_bottom_sheet_compare_translations.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\layout\\bottom_sheet_compare_translations.xml"
     },
@@ -278,6 +278,10 @@
     {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_fullscreen_exit.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_fullscreen_exit.xml"
+    },
+    {
+        "merged": "com.tanxe.quran.app-merged_res-51:/layout_item_mushaf_page.xml.flat",
+        "source": "com.tanxe.quran.app-main-53:/layout/item_mushaf_page.xml"
     },
     {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\layout_fragment_learn.xml.flat",

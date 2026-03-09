@@ -512,6 +512,169 @@ public class DownloadManager {
         return tafseers;
     }
 
+    /** Fetch tafseer data from quran.com translations API for a single surah */
+    private List<Tafseer> fetchTafseerFromQuranComTranslation(int surah, int resourceId, String editionKey, String language) {
+        List<Tafseer> tafseers = new ArrayList<>();
+        String url = "https://api.quran.com/api/v4/quran/translations/" + resourceId + "?chapter_number=" + surah;
+        String json = fetchUrl(url);
+        if (json == null) return tafseers;
+
+        try {
+            JsonObject root = gson.fromJson(json, JsonObject.class);
+            JsonArray translations = root.getAsJsonArray("translations");
+            if (translations == null) return tafseers;
+
+            int ayahNum = 1;
+            for (JsonElement el : translations) {
+                JsonObject t = el.getAsJsonObject();
+                String text = t.has("text") ? t.get("text").getAsString() : "";
+                // Strip HTML tags (footnote markers etc.)
+                text = text.replaceAll("<[^>]*>", "").trim();
+                if (!text.isEmpty()) {
+                    tafseers.add(new Tafseer(surah, ayahNum, text, editionKey, language));
+                }
+                ayahNum++;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error parsing translation-as-tafseer surah " + surah, e);
+        }
+        return tafseers;
+    }
+
+    /**
+     * Download tafseer from quran.com translations API (for tafseer-style translations like Tafheem ul Quran).
+     * Uses translations resource IDs but stores as Tafseer entities.
+     */
+    public void downloadTafseerFromQuranComTranslation(String editionKey, int resourceId, String language, StatusCallback callback) {
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        AtomicBoolean paused = new AtomicBoolean(false);
+        cancelFlags.put(editionKey, cancelled);
+        pauseFlags.put(editionKey, paused);
+
+        executor.execute(() -> {
+            try {
+                // Resume: find surahs that need downloading
+                List<com.tanxe.quran.data.entity.SurahAyahCount> counts = repository.getTafseerAyahCountsBySurah(editionKey);
+                java.util.Map<Integer, Integer> countMap = new java.util.HashMap<>();
+                if (counts != null) {
+                    for (com.tanxe.quran.data.entity.SurahAyahCount c : counts) countMap.put(c.surahNumber, c.cnt);
+                }
+
+                List<Integer> pendingSurahs = new ArrayList<>();
+                int alreadyComplete = 0;
+                for (int s = 1; s <= 114; s++) {
+                    int expected = com.tanxe.quran.util.QuranDataParser.SURAH_AYAH_COUNT[s - 1];
+                    Integer actual = countMap.get(s);
+                    if (actual == null || actual == 0) {
+                        pendingSurahs.add(s);
+                    } else if (actual < expected) {
+                        // Incomplete surah — re-download
+                        pendingSurahs.add(s);
+                    } else {
+                        alreadyComplete++;
+                    }
+                }
+
+                if (pendingSurahs.isEmpty()) {
+                    repository.setDownloadState(editionKey, "downloaded");
+                    repository.setDownloadProgress(editionKey, 100);
+                    repository.updateEditionDownloadState(editionKey, true, 100);
+                    callback.onStatus("\u2713 Tafseer downloaded");
+                    return;
+                }
+
+                int initialAyahs = repository.getTafseerCount(editionKey);
+                AtomicInteger totalAyahs = new AtomicInteger(initialAyahs);
+
+                callback.onStatus("Downloading tafseer... (" + alreadyComplete + "/114 complete, " + pendingSurahs.size() + " remaining)");
+                repository.setDownloadState(editionKey, "downloading");
+
+                AtomicInteger completedSurahs = new AtomicInteger(alreadyComplete);
+                ExecutorService pool = Executors.newFixedThreadPool(PARALLEL_DOWNLOADS);
+
+                int batchSize = PARALLEL_DOWNLOADS;
+                for (int i = 0; i < pendingSurahs.size(); i += batchSize) {
+                    if (cancelled.get()) { cleanup(editionKey); pool.shutdownNow(); return; }
+
+                    while (paused.get() && !cancelled.get()) {
+                        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+                    }
+
+                    int end = Math.min(i + batchSize, pendingSurahs.size());
+                    CountDownLatch latch = new CountDownLatch(end - i);
+                    List<List<Tafseer>> batchResults = new ArrayList<>();
+                    for (int k = 0; k < end - i; k++) batchResults.add(null);
+
+                    for (int j = i; j < end; j++) {
+                        final int surah = pendingSurahs.get(j);
+                        final int idx = j - i;
+                        pool.execute(() -> {
+                            try {
+                                if (!cancelled.get()) {
+                                    List<Tafseer> result = fetchTafseerFromQuranComTranslation(surah, resourceId, editionKey, language);
+                                    synchronized (batchResults) {
+                                        batchResults.set(idx, result);
+                                    }
+                                }
+                            } finally {
+                                int done = completedSurahs.incrementAndGet();
+                                int progress = (int) (done * 100.0 / 114);
+                                callback.onStatus("Tafseer: " + done + "/114 (" + progress + "%) " + totalAyahs.get() + "/6236 ayahs");
+                                latch.countDown();
+                            }
+                        });
+                    }
+
+                    latch.await();
+
+                    // Insert batch results
+                    List<Tafseer> toInsert = new ArrayList<>();
+                    for (List<Tafseer> result : batchResults) {
+                        if (result != null) toInsert.addAll(result);
+                    }
+                    if (!toInsert.isEmpty()) {
+                        repository.insertTafseers(toInsert);
+                        totalAyahs.addAndGet(toInsert.size());
+                        int done = completedSurahs.get();
+                        int progress = (int) (done * 100.0 / 114);
+                        callback.onStatus("Tafseer: " + done + "/114 (" + progress + "%) " + totalAyahs.get() + "/6236 ayahs");
+                    }
+                }
+
+                pool.shutdown();
+
+                if (!cancelled.get()) {
+                    int actualSurahs = repository.getTafseerSurahCount(editionKey);
+                    int actualAyahs = repository.getTafseerCount(editionKey);
+                    long actualSize = repository.getTafseerTextSize(editionKey);
+                    if (actualSurahs >= 114 && actualAyahs >= 6000) {
+                        repository.setDownloadState(editionKey, "downloaded");
+                        repository.setDownloadProgress(editionKey, 100);
+                        repository.updateEditionDownloadState(editionKey, true, 100);
+                        callback.onStatus("\u2713 Tafseer downloaded (" + actualAyahs + " ayahs \u00b7 " + formatBytes(actualSize) + ")");
+                    } else if (actualSurahs >= 114) {
+                        repository.setDownloadState(editionKey, "downloaded");
+                        repository.setDownloadProgress(editionKey, 100);
+                        repository.updateEditionDownloadState(editionKey, true, 100);
+                        callback.onStatus("\u2713 Tafseer downloaded (" + actualAyahs + " ayahs \u00b7 " + formatBytes(actualSize) + ")");
+                    } else {
+                        repository.setDownloadState(editionKey, "incomplete");
+                        repository.setDownloadProgress(editionKey, (int)(actualSurahs * 100.0 / 114));
+                        callback.onStatus("Incomplete: " + actualSurahs + "/114 surahs \u00b7 " + actualAyahs + " ayahs \u00b7 " + formatBytes(actualSize) + " \u2014 tap download to resume");
+                    }
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error downloading tafseer from quran.com translation API", e);
+                repository.setDownloadState(editionKey, "none");
+                callback.onStatus("Failed: " + e.getMessage());
+            } finally {
+                cancelFlags.remove(editionKey);
+                pauseFlags.remove(editionKey);
+            }
+        });
+    }
+
     public void downloadTafseerFromQuranCom(String editionKey, int resourceId, String language, StatusCallback callback) {
         AtomicBoolean cancelled = new AtomicBoolean(false);
         AtomicBoolean paused = new AtomicBoolean(false);
