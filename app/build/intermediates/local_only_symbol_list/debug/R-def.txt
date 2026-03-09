@@ -64,6 +64,7 @@ drawable ic_arrow_drop_down
 drawable ic_bookmark
 drawable ic_bookmark_filled
 drawable ic_check_circle
+drawable ic_close
 drawable ic_compare
 drawable ic_delete
 drawable ic_download
@@ -82,6 +83,7 @@ drawable ic_pause
 drawable ic_play
 drawable ic_quran
 drawable ic_repeat
+drawable ic_repeat_one
 drawable ic_search
 drawable ic_select_text
 drawable ic_settings
@@ -118,7 +120,6 @@ id btn_font_increase
 id btn_fullscreen
 id btn_know
 id btn_mode_arabic
-id btn_mode_hafiz
 id btn_mode_wbw
 id btn_next
 id btn_next_word
@@ -128,7 +129,6 @@ id btn_previous
 id btn_random
 id btn_reading_point
 id btn_repeat
-id btn_reset
 id btn_reveal
 id btn_search_word
 id btn_share
@@ -145,6 +145,7 @@ id card_progress
 id card_purple
 id chip_all
 id chip_known
+id chip_reset
 id chip_search_all
 id chip_search_arabic
 id chip_search_tafseer
@@ -209,6 +210,7 @@ id spinner_language
 id spinner_scope
 id surah_index_container
 id surah_item_container
+id switch_landscape
 id tab_category
 id tab_layout
 id theme_grid
@@ -250,6 +252,7 @@ id tv_juz_surahs
 id tv_juz_title
 id tv_khatmah
 id tv_khatmah_label
+id tv_landscape_label
 id tv_lang_english
 id tv_lang_native
 id tv_language
@@ -310,7 +313,6 @@ id tv_word_arabic
 id tv_word_index
 id tv_word_position
 id tv_word_translation
-id vp_hafiz
 id word_freq_container
 layout activity_language_setup
 layout activity_main

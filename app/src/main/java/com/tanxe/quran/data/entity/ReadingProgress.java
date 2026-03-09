@@ -2,9 +2,12 @@ package com.tanxe.quran.data.entity;
 
 import androidx.room.Entity;
 import androidx.room.Ignore;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
-@Entity(tableName = "reading_progress")
+@Entity(tableName = "reading_progress", indices = {
+    @Index(value = {"timestamp"})
+})
 public class ReadingProgress {
     @PrimaryKey(autoGenerate = true)
     public int id;

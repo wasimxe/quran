@@ -109,11 +109,29 @@ public class TranslationCompareBottomSheet extends BottomSheetDialogFragment {
 
         // Arabic text (selectable for copy/paste + search)
         TextView tvArabic = view.findViewById(R.id.tv_arabic);
-        tvArabic.setText(arabicText != null ? arabicText : "");
         tvArabic.setTextColor(theme.getArabicTextColor());
         tvArabic.setTextIsSelectable(true);
         if (arabicFont != null) tvArabic.setTypeface(arabicFont);
         tvArabic.setCustomSelectionActionModeCallback(createSearchActionCallback(tvArabic, "arabic"));
+
+        // Collapse long Arabic text with tap to expand
+        String safeArabic = arabicText != null ? arabicText : "";
+        if (safeArabic.length() > 80) {
+            tvArabic.setMaxLines(2);
+            tvArabic.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            tvArabic.setText(safeArabic);
+            tvArabic.setOnClickListener(v -> {
+                if (tvArabic.getMaxLines() == 2) {
+                    tvArabic.setMaxLines(Integer.MAX_VALUE);
+                    tvArabic.setEllipsize(null);
+                } else {
+                    tvArabic.setMaxLines(2);
+                    tvArabic.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                }
+            });
+        } else {
+            tvArabic.setText(safeArabic);
+        }
 
         container = view.findViewById(R.id.translations_container);
 

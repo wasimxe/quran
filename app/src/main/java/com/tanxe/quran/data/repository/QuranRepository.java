@@ -45,9 +45,13 @@ public class QuranRepository {
 
     // LRU caches for hot-path DB queries during scrolling
     // Key: "surah:ayah", caches individual ayah lookups
-    private final LruCache<String, Ayah> ayahCache = new LruCache<>(256);
+    private final LruCache<String, Ayah> ayahCache = new LruCache<>(512);
     // Key: surah number, caches full surah ayah lists (for MushafAdapter)
-    private final LruCache<Integer, List<Ayah>> surahCache = new LruCache<>(10);
+    private final LruCache<Integer, List<Ayah>> surahCache = new LruCache<>(20);
+    // Translation cache: "surah:edition" -> list (for batch surah loads)
+    private final LruCache<String, List<Translation>> translationSurahCache = new LruCache<>(20);
+    // Tafseer cache: "surah:edition" -> list
+    private final LruCache<String, List<Tafseer>> tafseerSurahCache = new LruCache<>(10);
 
     private QuranRepository(Context context) {
         QuranDatabase db = QuranDatabase.getInstance(context);
@@ -61,7 +65,8 @@ public class QuranRepository {
         reciterInfoDao = db.reciterInfoDao();
         readingProgressDao = db.readingProgressDao();
         prefs = context.getSharedPreferences("quran_prefs", Context.MODE_PRIVATE);
-        executor = Executors.newFixedThreadPool(4);
+        // Use more threads for IO-bound DB work — prevents queueing during scrolling
+        executor = Executors.newFixedThreadPool(6);
     }
 
     public static QuranRepository getInstance(Context context) {
@@ -105,14 +110,28 @@ public class QuranRepository {
     public List<Ayah> getAyahsByJuz(int juz) { return ayahDao.getAyahsByJuz(juz); }
     public int getAyahCount(int surah) { return ayahDao.getAyahCount(surah); }
     public int getTotalAyahCount() { return ayahDao.getTotalAyahCount(); }
-    public List<AyahDao.SurahInfo> getAllSurahs() { return ayahDao.getAllSurahs(); }
+    // Cache surah list permanently — it never changes
+    private volatile List<AyahDao.SurahInfo> cachedSurahList;
+    public List<AyahDao.SurahInfo> getAllSurahs() {
+        if (cachedSurahList != null) return cachedSurahList;
+        List<AyahDao.SurahInfo> result = ayahDao.getAllSurahs();
+        if (result != null && result.size() == 114) cachedSurahList = result;
+        return result;
+    }
     public Ayah getRandomAyah() { return ayahDao.getRandomAyah(); }
     public int getMaxAyahInSurah(int surah) { return ayahDao.getMaxAyahInSurah(surah); }
 
     // === Translation operations ===
     public void insertTranslations(List<Translation> translations) { translationDao.insertAll(translations); }
     public Translation getTranslation(int surah, int ayah, String edition) { return translationDao.getTranslation(surah, ayah, edition); }
-    public List<Translation> getTranslationsBySurah(int surah, String edition) { return translationDao.getTranslationsBySurah(surah, edition); }
+    public List<Translation> getTranslationsBySurah(int surah, String edition) {
+        String key = surah + ":" + edition;
+        List<Translation> cached = translationSurahCache.get(key);
+        if (cached != null) return cached;
+        List<Translation> result = translationDao.getTranslationsBySurah(surah, edition);
+        if (result != null && !result.isEmpty()) translationSurahCache.put(key, result);
+        return result;
+    }
     public List<String> getAvailableTranslations() { return translationDao.getAvailableEditions(); }
     public List<String> getTranslationsByLanguage(String lang) { return translationDao.getEditionsByLanguage(lang); }
     public void deleteTranslation(String edition) { translationDao.deleteEdition(edition); }
@@ -124,7 +143,14 @@ public class QuranRepository {
     // === Tafseer operations ===
     public void insertTafseers(List<Tafseer> tafseers) { tafseerDao.insertAll(tafseers); }
     public Tafseer getTafseer(int surah, int ayah, String edition) { return tafseerDao.getTafseer(surah, ayah, edition); }
-    public List<Tafseer> getTafseersBySurah(int surah, String edition) { return tafseerDao.getTafseersBySurah(surah, edition); }
+    public List<Tafseer> getTafseersBySurah(int surah, String edition) {
+        String key = surah + ":" + edition;
+        List<Tafseer> cached = tafseerSurahCache.get(key);
+        if (cached != null) return cached;
+        List<Tafseer> result = tafseerDao.getTafseersBySurah(surah, edition);
+        if (result != null && !result.isEmpty()) tafseerSurahCache.put(key, result);
+        return result;
+    }
     public List<String> getAvailableTafseers() { return tafseerDao.getAvailableEditions(); }
     public List<String> getTafseersByLanguage(String lang) { return tafseerDao.getEditionsByLanguage(lang); }
     public void deleteTafseer(String edition) { tafseerDao.deleteEdition(edition); }
@@ -318,7 +344,12 @@ public class QuranRepository {
     }
 
     // === Preferences ===
+    private int lastSavedSurah = -1, lastSavedAyah = -1;
     public void saveCurrentPosition(int surah, int ayah) {
+        // Avoid redundant writes
+        if (surah == lastSavedSurah && ayah == lastSavedAyah) return;
+        lastSavedSurah = surah;
+        lastSavedAyah = ayah;
         prefs.edit().putInt("current_surah", surah).putInt("current_ayah", ayah).apply();
     }
 
@@ -405,11 +436,18 @@ public class QuranRepository {
     public void saveLanguage(String lang) { prefs.edit().putString("app_language", lang).apply(); }
     public String getLanguage() { return prefs.getString("app_language", "en"); }
 
-    public void setRepeatMode(boolean repeat) { prefs.edit().putBoolean("repeat_mode", repeat).apply(); }
-    public boolean getRepeatMode() { return prefs.getBoolean("repeat_mode", false); }
+    // Repeat mode: 0=off, 1=repeat ayah, 2=repeat surah
+    public void setRepeatModeInt(int mode) { prefs.edit().putInt("repeat_mode_int", mode).apply(); }
+    public int getRepeatModeInt() { return prefs.getInt("repeat_mode_int", 0); }
+    // Legacy boolean accessor for backward compat
+    public void setRepeatMode(boolean repeat) { setRepeatModeInt(repeat ? 1 : 0); }
+    public boolean getRepeatMode() { return getRepeatModeInt() == 1; }
 
     public void setContinuousPlay(boolean continuous) { prefs.edit().putBoolean("continuous_play", continuous).apply(); }
     public boolean getContinuousPlay() { return prefs.getBoolean("continuous_play", false); }
+
+    public void setLandscapeEnabled(boolean enabled) { prefs.edit().putBoolean("landscape_enabled", enabled).apply(); }
+    public boolean isLandscapeEnabled() { return prefs.getBoolean("landscape_enabled", false); }
 
     public boolean isDataLoaded() { return prefs.getBoolean("data_loaded", false); }
     public void setDataLoaded(boolean loaded) { prefs.edit().putBoolean("data_loaded", loaded).apply(); }

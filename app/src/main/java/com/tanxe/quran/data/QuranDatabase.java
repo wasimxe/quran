@@ -16,7 +16,7 @@ import com.tanxe.quran.data.entity.*;
         Ayah.class, Translation.class, Tafseer.class, WordByWord.class,
         Bookmark.class, KnownWord.class, EditionInfo.class, ReciterInfo.class,
         ReadingProgress.class
-}, version = 2, exportSchema = false)
+}, version = 3, exportSchema = false)
 public abstract class QuranDatabase extends RoomDatabase {
     private static volatile QuranDatabase INSTANCE;
 
@@ -29,6 +29,33 @@ public abstract class QuranDatabase extends RoomDatabase {
     public abstract EditionInfoDao editionInfoDao();
     public abstract ReciterInfoDao reciterInfoDao();
     public abstract ReadingProgressDao readingProgressDao();
+
+    static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            // Add performance indexes for fast lookups
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_ayahs_surahNumber_ayahNumber` ON `ayahs` (`surahNumber`, `ayahNumber`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_ayahs_surahNumber` ON `ayahs` (`surahNumber`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_ayahs_juzNumber` ON `ayahs` (`juzNumber`)");
+
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_surahNumber_ayahNumber_edition` ON `translations` (`surahNumber`, `ayahNumber`, `edition`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_edition_surahNumber` ON `translations` (`edition`, `surahNumber`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_edition` ON `translations` (`edition`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_language` ON `translations` (`language`)");
+
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_surahNumber_ayahNumber_edition` ON `tafseers` (`surahNumber`, `ayahNumber`, `edition`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_edition_surahNumber` ON `tafseers` (`edition`, `surahNumber`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_edition` ON `tafseers` (`edition`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_language` ON `tafseers` (`language`)");
+
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_word_by_word_surahNumber_ayahNumber_language` ON `word_by_word` (`surahNumber`, `ayahNumber`, `language`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_word_by_word_language_surahNumber` ON `word_by_word` (`language`, `surahNumber`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_word_by_word_language` ON `word_by_word` (`language`)");
+
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_bookmarks_surahNumber_ayahNumber` ON `bookmarks` (`surahNumber`, `ayahNumber`)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS `index_reading_progress_timestamp` ON `reading_progress` (`timestamp`)");
+        }
+    };
 
     static final Migration MIGRATION_1_2 = new Migration(1, 2) {
         @Override
@@ -64,6 +91,15 @@ public abstract class QuranDatabase extends RoomDatabase {
         }
     };
 
+    // Direct migration 1→3 for users who never got version 2
+    static final Migration MIGRATION_1_3 = new Migration(1, 3) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            MIGRATION_1_2.migrate(database);
+            MIGRATION_2_3.migrate(database);
+        }
+    };
+
     public static QuranDatabase getInstance(Context context) {
         if (INSTANCE == null) {
             synchronized (QuranDatabase.class) {
@@ -73,7 +109,7 @@ public abstract class QuranDatabase extends RoomDatabase {
                             QuranDatabase.class,
                             "quran_database"
                     )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_1_3)
                     .fallbackToDestructiveMigration()
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .build();

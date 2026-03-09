@@ -39,6 +39,11 @@ public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdap
     private String filter = "all"; // all, known, unknown
     private int selectedIndex = -1;
 
+    // Lazy loading: only show PAGE_SIZE items at a time, load more on scroll
+    private static final int PAGE_SIZE = 200;
+    private int visibleCount = PAGE_SIZE;
+    private boolean allLoaded = false;
+
     public WordFrequencyAdapter(List<WordByWordDao.WordWithTranslation> words, Set<String> knownWords,
                                 ThemeManager theme, Typeface arabicFont, OnWordAction listener) {
         this.allWords = words;
@@ -75,6 +80,9 @@ public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdap
                 filteredWords.add(w);
             }
         }
+        // Reset lazy loading on filter change
+        visibleCount = PAGE_SIZE;
+        allLoaded = filteredWords.size() <= PAGE_SIZE;
         notifyDataSetChanged();
     }
 
@@ -155,9 +163,24 @@ public class WordFrequencyAdapter extends RecyclerView.Adapter<WordFrequencyAdap
         });
     }
 
+    /** Load next page of items. Returns true if more items were loaded. */
+    public boolean loadMore() {
+        if (allLoaded) return false;
+        int oldCount = visibleCount;
+        visibleCount = Math.min(visibleCount + PAGE_SIZE, filteredWords.size());
+        allLoaded = visibleCount >= filteredWords.size();
+        if (visibleCount > oldCount) {
+            notifyItemRangeInserted(oldCount, visibleCount - oldCount);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isAllLoaded() { return allLoaded; }
+
     @Override
     public int getItemCount() {
-        return filteredWords.size();
+        return Math.min(visibleCount, filteredWords.size());
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

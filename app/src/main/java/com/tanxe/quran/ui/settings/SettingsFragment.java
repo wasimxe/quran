@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.card.MaterialCardView;
@@ -106,6 +107,16 @@ public class SettingsFragment extends Fragment {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
+        // Landscape mode toggle
+        SwitchCompat switchLandscape = view.findViewById(R.id.switch_landscape);
+        switchLandscape.setChecked(repository.isLandscapeEnabled());
+        switchLandscape.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            repository.setLandscapeEnabled(isChecked);
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).applyOrientation();
+            }
+        });
+
         // Developer info click handlers
         view.findViewById(R.id.row_website).setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.tanxe.com"));
@@ -173,6 +184,9 @@ public class SettingsFragment extends Fragment {
         if (tvProgressTitle != null) tvProgressTitle.setTextColor(theme.getPrimaryTextColor());
 
         // Style section headers
+        TextView tvLandscapeLabel = getView().findViewById(R.id.tv_landscape_label);
+        if (tvLandscapeLabel != null) tvLandscapeLabel.setTextColor(theme.getPrimaryTextColor());
+
         int[] headerIds = {R.id.tv_theme_header,
                 R.id.tv_language_header, R.id.tv_about_header};
         for (int id : headerIds) {
@@ -242,6 +256,9 @@ public class SettingsFragment extends Fragment {
 
         TextView tvWebLabel = getView().findViewById(R.id.tv_website_label);
         if (tvWebLabel != null) tvWebLabel.setText(Localization.get(lang, Localization.WEBSITE));
+
+        TextView tvLandscapeLabel = getView().findViewById(R.id.tv_landscape_label);
+        if (tvLandscapeLabel != null) tvLandscapeLabel.setText(Localization.get(lang, Localization.LANDSCAPE_MODE));
     }
 
     @Override

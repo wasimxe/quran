@@ -41,6 +41,7 @@ public class SearchFragment extends Fragment {
     private TextInputEditText etSearch;
     private RecyclerView rvResults;
     private TextView tvResultCount, tvNoResults;
+    private SearchAdapter searchAdapter;
     private String searchFilter = "all";
     private final Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable pendingSearch;
@@ -69,6 +70,15 @@ public class SearchFragment extends Fragment {
 
         rvResults.setLayoutManager(new LinearLayoutManager(requireContext()));
         rvResults.setHasFixedSize(true);
+        rvResults.setItemViewCacheSize(15);
+
+        // Pre-create adapter to avoid recreation on every search
+        searchAdapter = new SearchAdapter(new ArrayList<>(), theme, ayah -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).navigateToAyah(ayah.surahNumber, ayah.ayahNumber);
+            }
+        });
+        rvResults.setAdapter(searchAdapter);
 
         // Filter chips
         ChipGroup filterChips = view.findViewById(R.id.search_filter_chips);
@@ -164,12 +174,7 @@ public class SearchFragment extends Fragment {
                         String resLabel = Localization.get(repository.getLanguage(), Localization.RESULTS);
                         tvResultCount.setText(finalResults.size() + " " + resLabel);
 
-                        SearchAdapter adapter = new SearchAdapter(finalResults, theme, ayah -> {
-                            if (getActivity() instanceof MainActivity) {
-                                ((MainActivity) getActivity()).navigateToAyah(ayah.surahNumber, ayah.ayahNumber);
-                            }
-                        });
-                        rvResults.setAdapter(adapter);
+                        searchAdapter.updateResults(finalResults);
                     }
                 });
             }

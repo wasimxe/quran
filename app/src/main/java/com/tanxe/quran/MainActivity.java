@@ -1,5 +1,6 @@
 package com.tanxe.quran;
 
+import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.view.View;
 
@@ -35,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         applyTheme();
+        applyOrientation();
         setupFragments();
         setupBottomNavigation();
         setupBackPress();
@@ -71,7 +73,7 @@ public class MainActivity extends AppCompatActivity {
                 .add(R.id.fragment_container, libraryFragment, "library").hide(libraryFragment)
                 .add(R.id.fragment_container, searchFragment, "search").hide(searchFragment)
                 .add(R.id.fragment_container, readingFragment, "reading")
-                .commit();
+                .commitNow();
     }
 
     private void setupBottomNavigation() {
@@ -109,10 +111,9 @@ public class MainActivity extends AppCompatActivity {
 
             previousNavId = id;
             getSupportFragmentManager().beginTransaction()
-                    .setCustomAnimations(R.anim.fade_in, R.anim.fade_out)
                     .hide(activeFragment)
                     .show(selected)
-                    .commit();
+                    .commitNowAllowingStateLoss();
             activeFragment = selected;
             return true;
         });
@@ -122,6 +123,11 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                // If reading fragment is in fullscreen, exit fullscreen first
+                if (activeFragment == readingFragment && readingFragment.isFullscreen()) {
+                    readingFragment.exitFullscreen();
+                    return;
+                }
                 // If not on Quran (first) tab, go back to it
                 if (activeFragment != readingFragment) {
                     bottomNav.setSelectedItemId(R.id.nav_read);
@@ -154,6 +160,13 @@ public class MainActivity extends AppCompatActivity {
         bottomNav.getMenu().findItem(R.id.nav_search).setTitle(Localization.get(lang, Localization.SEARCH));
         bottomNav.getMenu().findItem(R.id.nav_library).setTitle(Localization.get(lang, Localization.LIBRARY));
         bottomNav.getMenu().findItem(R.id.nav_more).setTitle(Localization.get(lang, Localization.MORE));
+    }
+
+    public void applyOrientation() {
+        boolean landscape = QuranRepository.getInstance(this).isLandscapeEnabled();
+        setRequestedOrientation(landscape
+                ? ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
     }
 
     public void refreshTheme() {

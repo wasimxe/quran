@@ -34,6 +34,7 @@ import java.lang.Override;
 import java.lang.String;
 import java.lang.SuppressWarnings;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -65,20 +66,36 @@ public final class QuranDatabase_Impl extends QuranDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(2) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(3) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `ayahs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `surahNameEn` TEXT, `surahNameAr` TEXT, `arabicText` TEXT, `defaultTranslation` TEXT, `juzNumber` INTEGER NOT NULL)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_ayahs_surahNumber_ayahNumber` ON `ayahs` (`surahNumber`, `ayahNumber`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_ayahs_surahNumber` ON `ayahs` (`surahNumber`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_ayahs_juzNumber` ON `ayahs` (`juzNumber`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `translations` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `text` TEXT, `edition` TEXT, `language` TEXT)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_surahNumber_ayahNumber_edition` ON `translations` (`surahNumber`, `ayahNumber`, `edition`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_edition_surahNumber` ON `translations` (`edition`, `surahNumber`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_edition` ON `translations` (`edition`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_translations_language` ON `translations` (`language`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `tafseers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `text` TEXT, `edition` TEXT, `language` TEXT)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_surahNumber_ayahNumber_edition` ON `tafseers` (`surahNumber`, `ayahNumber`, `edition`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_edition_surahNumber` ON `tafseers` (`edition`, `surahNumber`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_edition` ON `tafseers` (`edition`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_tafseers_language` ON `tafseers` (`language`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `word_by_word` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `wordPosition` INTEGER NOT NULL, `arabicWord` TEXT, `translation` TEXT, `transliteration` TEXT, `language` TEXT)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_word_by_word_surahNumber_ayahNumber_language` ON `word_by_word` (`surahNumber`, `ayahNumber`, `language`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_word_by_word_language_surahNumber` ON `word_by_word` (`language`, `surahNumber`)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_word_by_word_language` ON `word_by_word` (`language`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `bookmarks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `surahName` TEXT, `note` TEXT, `timestamp` INTEGER NOT NULL)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_bookmarks_surahNumber_ayahNumber` ON `bookmarks` (`surahNumber`, `ayahNumber`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `known_words` (`arabicWord` TEXT NOT NULL, `frequency` INTEGER NOT NULL, `learnedAt` INTEGER NOT NULL, PRIMARY KEY(`arabicWord`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `edition_info` (`identifier` TEXT NOT NULL, `name` TEXT, `language` TEXT, `languageName` TEXT, `type` TEXT, `direction` TEXT, `isDownloaded` INTEGER NOT NULL, `downloadProgress` INTEGER NOT NULL, `downloadedAt` INTEGER NOT NULL, PRIMARY KEY(`identifier`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `reciter_info` (`identifier` TEXT NOT NULL, `name` TEXT, `style` TEXT, `subfolder` TEXT, `bitrate` INTEGER NOT NULL, `isDownloaded` INTEGER NOT NULL, PRIMARY KEY(`identifier`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS `reading_progress` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `surahNumber` INTEGER NOT NULL, `ayahNumber` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `sessionDurationSeconds` INTEGER NOT NULL, `type` TEXT)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_reading_progress_timestamp` ON `reading_progress` (`timestamp`)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '226f1e196741672cda41492eb721e188')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '999133a9ec127bc59107bfe686e8c9b5')");
       }
 
       @Override
@@ -145,7 +162,10 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         _columnsAyahs.put("defaultTranslation", new TableInfo.Column("defaultTranslation", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsAyahs.put("juzNumber", new TableInfo.Column("juzNumber", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysAyahs = new HashSet<TableInfo.ForeignKey>(0);
-        final HashSet<TableInfo.Index> _indicesAyahs = new HashSet<TableInfo.Index>(0);
+        final HashSet<TableInfo.Index> _indicesAyahs = new HashSet<TableInfo.Index>(3);
+        _indicesAyahs.add(new TableInfo.Index("index_ayahs_surahNumber_ayahNumber", false, Arrays.asList("surahNumber", "ayahNumber"), Arrays.asList("ASC", "ASC")));
+        _indicesAyahs.add(new TableInfo.Index("index_ayahs_surahNumber", false, Arrays.asList("surahNumber"), Arrays.asList("ASC")));
+        _indicesAyahs.add(new TableInfo.Index("index_ayahs_juzNumber", false, Arrays.asList("juzNumber"), Arrays.asList("ASC")));
         final TableInfo _infoAyahs = new TableInfo("ayahs", _columnsAyahs, _foreignKeysAyahs, _indicesAyahs);
         final TableInfo _existingAyahs = TableInfo.read(db, "ayahs");
         if (!_infoAyahs.equals(_existingAyahs)) {
@@ -161,7 +181,11 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         _columnsTranslations.put("edition", new TableInfo.Column("edition", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsTranslations.put("language", new TableInfo.Column("language", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysTranslations = new HashSet<TableInfo.ForeignKey>(0);
-        final HashSet<TableInfo.Index> _indicesTranslations = new HashSet<TableInfo.Index>(0);
+        final HashSet<TableInfo.Index> _indicesTranslations = new HashSet<TableInfo.Index>(4);
+        _indicesTranslations.add(new TableInfo.Index("index_translations_surahNumber_ayahNumber_edition", false, Arrays.asList("surahNumber", "ayahNumber", "edition"), Arrays.asList("ASC", "ASC", "ASC")));
+        _indicesTranslations.add(new TableInfo.Index("index_translations_edition_surahNumber", false, Arrays.asList("edition", "surahNumber"), Arrays.asList("ASC", "ASC")));
+        _indicesTranslations.add(new TableInfo.Index("index_translations_edition", false, Arrays.asList("edition"), Arrays.asList("ASC")));
+        _indicesTranslations.add(new TableInfo.Index("index_translations_language", false, Arrays.asList("language"), Arrays.asList("ASC")));
         final TableInfo _infoTranslations = new TableInfo("translations", _columnsTranslations, _foreignKeysTranslations, _indicesTranslations);
         final TableInfo _existingTranslations = TableInfo.read(db, "translations");
         if (!_infoTranslations.equals(_existingTranslations)) {
@@ -177,7 +201,11 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         _columnsTafseers.put("edition", new TableInfo.Column("edition", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsTafseers.put("language", new TableInfo.Column("language", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysTafseers = new HashSet<TableInfo.ForeignKey>(0);
-        final HashSet<TableInfo.Index> _indicesTafseers = new HashSet<TableInfo.Index>(0);
+        final HashSet<TableInfo.Index> _indicesTafseers = new HashSet<TableInfo.Index>(4);
+        _indicesTafseers.add(new TableInfo.Index("index_tafseers_surahNumber_ayahNumber_edition", false, Arrays.asList("surahNumber", "ayahNumber", "edition"), Arrays.asList("ASC", "ASC", "ASC")));
+        _indicesTafseers.add(new TableInfo.Index("index_tafseers_edition_surahNumber", false, Arrays.asList("edition", "surahNumber"), Arrays.asList("ASC", "ASC")));
+        _indicesTafseers.add(new TableInfo.Index("index_tafseers_edition", false, Arrays.asList("edition"), Arrays.asList("ASC")));
+        _indicesTafseers.add(new TableInfo.Index("index_tafseers_language", false, Arrays.asList("language"), Arrays.asList("ASC")));
         final TableInfo _infoTafseers = new TableInfo("tafseers", _columnsTafseers, _foreignKeysTafseers, _indicesTafseers);
         final TableInfo _existingTafseers = TableInfo.read(db, "tafseers");
         if (!_infoTafseers.equals(_existingTafseers)) {
@@ -195,7 +223,10 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         _columnsWordByWord.put("transliteration", new TableInfo.Column("transliteration", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsWordByWord.put("language", new TableInfo.Column("language", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysWordByWord = new HashSet<TableInfo.ForeignKey>(0);
-        final HashSet<TableInfo.Index> _indicesWordByWord = new HashSet<TableInfo.Index>(0);
+        final HashSet<TableInfo.Index> _indicesWordByWord = new HashSet<TableInfo.Index>(3);
+        _indicesWordByWord.add(new TableInfo.Index("index_word_by_word_surahNumber_ayahNumber_language", false, Arrays.asList("surahNumber", "ayahNumber", "language"), Arrays.asList("ASC", "ASC", "ASC")));
+        _indicesWordByWord.add(new TableInfo.Index("index_word_by_word_language_surahNumber", false, Arrays.asList("language", "surahNumber"), Arrays.asList("ASC", "ASC")));
+        _indicesWordByWord.add(new TableInfo.Index("index_word_by_word_language", false, Arrays.asList("language"), Arrays.asList("ASC")));
         final TableInfo _infoWordByWord = new TableInfo("word_by_word", _columnsWordByWord, _foreignKeysWordByWord, _indicesWordByWord);
         final TableInfo _existingWordByWord = TableInfo.read(db, "word_by_word");
         if (!_infoWordByWord.equals(_existingWordByWord)) {
@@ -211,7 +242,8 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         _columnsBookmarks.put("note", new TableInfo.Column("note", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsBookmarks.put("timestamp", new TableInfo.Column("timestamp", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysBookmarks = new HashSet<TableInfo.ForeignKey>(0);
-        final HashSet<TableInfo.Index> _indicesBookmarks = new HashSet<TableInfo.Index>(0);
+        final HashSet<TableInfo.Index> _indicesBookmarks = new HashSet<TableInfo.Index>(1);
+        _indicesBookmarks.add(new TableInfo.Index("index_bookmarks_surahNumber_ayahNumber", false, Arrays.asList("surahNumber", "ayahNumber"), Arrays.asList("ASC", "ASC")));
         final TableInfo _infoBookmarks = new TableInfo("bookmarks", _columnsBookmarks, _foreignKeysBookmarks, _indicesBookmarks);
         final TableInfo _existingBookmarks = TableInfo.read(db, "bookmarks");
         if (!_infoBookmarks.equals(_existingBookmarks)) {
@@ -275,7 +307,8 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         _columnsReadingProgress.put("sessionDurationSeconds", new TableInfo.Column("sessionDurationSeconds", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsReadingProgress.put("type", new TableInfo.Column("type", "TEXT", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysReadingProgress = new HashSet<TableInfo.ForeignKey>(0);
-        final HashSet<TableInfo.Index> _indicesReadingProgress = new HashSet<TableInfo.Index>(0);
+        final HashSet<TableInfo.Index> _indicesReadingProgress = new HashSet<TableInfo.Index>(1);
+        _indicesReadingProgress.add(new TableInfo.Index("index_reading_progress_timestamp", false, Arrays.asList("timestamp"), Arrays.asList("ASC")));
         final TableInfo _infoReadingProgress = new TableInfo("reading_progress", _columnsReadingProgress, _foreignKeysReadingProgress, _indicesReadingProgress);
         final TableInfo _existingReadingProgress = TableInfo.read(db, "reading_progress");
         if (!_infoReadingProgress.equals(_existingReadingProgress)) {
@@ -285,7 +318,7 @@ public final class QuranDatabase_Impl extends QuranDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "226f1e196741672cda41492eb721e188", "6e175ca5dee797ff8e7e72187610d481");
+    }, "999133a9ec127bc59107bfe686e8c9b5", "edfcb72964c5902b4a9fe612991dcdce");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;

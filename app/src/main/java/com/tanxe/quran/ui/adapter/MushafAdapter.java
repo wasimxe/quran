@@ -51,8 +51,11 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
     private int highlightedSurah = -1;
     private int highlightedAyah = -1;
 
-    // Cache built spannable text per surah to avoid rebuilding on re-scroll
-    private final android.util.SparseArray<CachedSurahData> surahCache = new android.util.SparseArray<>();
+    // Whether to show ruku end markers (hidden in fullscreen mode)
+    private boolean showRukuMarkers = true;
+
+    // Cache built spannable text per surah to avoid rebuilding on re-scroll (up to 20 surahs)
+    private final android.util.SparseArray<CachedSurahData> surahCache = new android.util.SparseArray<>(20);
 
     private static class CachedSurahData {
         final CharSequence spannableText;
@@ -93,8 +96,9 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
         int oldSurah = highlightedSurah;
         highlightedSurah = surah;
         highlightedAyah = ayah;
-        if (oldSurah > 0) notifyItemChanged(oldSurah - 1);
-        if (surah > 0 && surah != oldSurah) notifyItemChanged(surah - 1);
+        // Use payload to avoid full rebind (which calls setText and causes scroll jitter)
+        if (oldSurah > 0) notifyItemChanged(oldSurah - 1, "highlight");
+        if (surah > 0 && surah != oldSurah) notifyItemChanged(surah - 1, "highlight");
     }
 
     public void updateFontSize(float arabicSp) {
@@ -107,6 +111,14 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
     public void setArabicFont(Typeface font) {
         this.arabicFont = font;
         clearCache();
+    }
+
+    public void setShowRukuMarkers(boolean show) {
+        if (this.showRukuMarkers != show) {
+            this.showRukuMarkers = show;
+            clearCache();
+            notifyDataSetChanged();
+        }
     }
 
     @Override
@@ -124,6 +136,16 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
     public MushafViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_mushaf_page, parent, false);
         return new MushafViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull MushafViewHolder holder, int position, @NonNull java.util.List<Object> payloads) {
+        if (!payloads.isEmpty() && "highlight".equals(payloads.get(0))) {
+            // Partial rebind: just invalidate to refresh highlight colors via updateDrawState
+            holder.tvMushafText.invalidate();
+            return;
+        }
+        onBindViewHolder(holder, position);
     }
 
     @Override
@@ -284,22 +306,26 @@ public class MushafAdapter extends RecyclerView.Adapter<MushafAdapter.MushafView
                 sb.setSpan(new ForegroundColorSpan(accentColor), markerStart, markerEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
                 if (RukuData.isRukuEnd(surah, ayah.ayahNumber)) {
-                    int surahRuku = RukuData.getSurahRukuNumber(surah, ayah.ayahNumber);
-                    int juzRuku = RukuData.getJuzRukuNumber(surah, ayah.ayahNumber);
-                    String[] labels = getRukuLabels(lang);
-                    String ruku = labels[0];
-                    String surahL = labels[1];
-                    String juzL = labels[2];
-                    String rukuLine = "\n\u2500\u2500\u2500  \u06DC " + surahL + " " + ruku + " " + surahRuku
-                            + " \u2022 " + juzL + " " + ruku + " " + juzRuku
-                            + "  \u2500\u2500\u2500";
-                    int rukuStart = sb.length();
-                    sb.append(rukuLine);
-                    int rukuEnd = sb.length();
-                    sb.setSpan(new RelativeSizeSpan(0.45f), rukuStart, rukuEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    sb.setSpan(new ForegroundColorSpan(accentColor), rukuStart, rukuEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    sb.setSpan(new AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER), rukuStart, rukuEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    sb.append("\n");
+                    if (showRukuMarkers) {
+                        int surahRuku = RukuData.getSurahRukuNumber(surah, ayah.ayahNumber);
+                        int juzRuku = RukuData.getJuzRukuNumber(surah, ayah.ayahNumber);
+                        String[] labels = getRukuLabels(lang);
+                        String ruku = labels[0];
+                        String surahL = labels[1];
+                        String juzL = labels[2];
+                        String rukuLine = "\n\u2500\u2500\u2500  \u06DC " + surahL + " " + ruku + " " + surahRuku
+                                + " \u2022 " + juzL + " " + ruku + " " + juzRuku
+                                + "  \u2500\u2500\u2500";
+                        int rukuStart = sb.length();
+                        sb.append(rukuLine);
+                        int rukuEnd = sb.length();
+                        sb.setSpan(new RelativeSizeSpan(0.45f), rukuStart, rukuEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        sb.setSpan(new ForegroundColorSpan(accentColor), rukuStart, rukuEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        sb.setSpan(new AlignmentSpan.Standard(Layout.Alignment.ALIGN_CENTER), rukuStart, rukuEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        sb.append("\n");
+                    } else {
+                        // Fullscreen: existing ع in ayah text is sufficient
+                    }
                 }
             }
 

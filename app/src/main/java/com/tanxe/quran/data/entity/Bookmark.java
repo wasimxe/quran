@@ -2,9 +2,12 @@ package com.tanxe.quran.data.entity;
 
 import androidx.room.Entity;
 import androidx.room.Ignore;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
-@Entity(tableName = "bookmarks")
+@Entity(tableName = "bookmarks", indices = {
+    @Index(value = {"surahNumber", "ayahNumber"})
+})
 public class Bookmark {
     @PrimaryKey(autoGenerate = true)
     public int id;

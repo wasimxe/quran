@@ -95,8 +95,9 @@ public class Localization {
     public static final int MODE_LEARN = 85;
     public static final int SELECTED = 86;
     public static final int DESELECTED = 87;
+    public static final int LANDSCAPE_MODE = 88;
 
-    private static final int LABEL_COUNT = 88;
+    private static final int LABEL_COUNT = 89;
 
     public static String get(String lang, int key) {
         return getLabels(lang)[key];
@@ -195,6 +196,7 @@ public class Localization {
                     "\u0633\u06CC\u06A9\u06BE\u06CC\u06BA", // سیکھیں
                     "\u0645\u0646\u062A\u062E\u0628", // منتخب
                     "\u063A\u06CC\u0631 \u0645\u0646\u062A\u062E\u0628", // غیر منتخب
+                    "\u0644\u06CC\u0646\u0688 \u0633\u06A9\u06CC\u067E", // لینڈ سکیپ
                 };
             case "ar":
                 return new String[]{
@@ -286,6 +288,7 @@ public class Localization {
                     "\u062A\u0639\u0644\u0645", // تعلم
                     "\u0645\u062E\u062A\u0627\u0631", // مختار
                     "\u063A\u064A\u0631 \u0645\u062E\u062A\u0627\u0631", // غير مختار
+                    "\u0627\u0644\u0648\u0636\u0639 \u0627\u0644\u0623\u0641\u0642\u064A", // الوضع الأفقي
                 };
             case "hi":
                 return new String[]{
@@ -372,6 +375,7 @@ public class Localization {
                     "\u0938\u0940\u0916\u0947\u0902", // सीखें
                     "\u091A\u0941\u0928\u093E \u0917\u092F\u093E", // चुना गया
                     "\u0905\u091A\u092F\u0928\u093F\u0924", // अचयनित
+                    "Landscape Mode",
                 };
             case "tr":
                 return new String[]{
@@ -408,6 +412,7 @@ public class Localization {
                     "\u00D6\u011Fren", // Öğren
                     "Se\u00E7ildi",
                     "Se\u00E7im kald\u0131r\u0131ld\u0131",
+                    "Yatay Mod",
                 };
             case "bn":
                 return new String[]{
@@ -494,6 +499,7 @@ public class Localization {
                     "\u09B6\u09BF\u0996\u09C1\u09A8", // শিখুন
                     "\u09A8\u09BF\u09B0\u09CD\u09AC\u09BE\u099A\u09BF\u09A4", // নির্বাচিত
                     "\u0985\u09A8\u09BF\u09B0\u09CD\u09AC\u09BE\u099A\u09BF\u09A4", // অনির্বাচিত
+                    "Landscape Mode",
                 };
             default: // en, id, ms, fr, de, fa and fallback
                 return new String[]{
@@ -532,6 +538,7 @@ public class Localization {
                     "Learn",
                     "Selected",
                     "Deselected",
+                    "Landscape Mode",
                 };
         }
     }

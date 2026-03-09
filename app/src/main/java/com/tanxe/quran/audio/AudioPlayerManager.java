@@ -133,6 +133,7 @@ public class AudioPlayerManager {
     private void playUri(Uri uri, boolean repeat) {
         try {
             player.stop();
+            player.clearMediaItems();
             player.setMediaItem(MediaItem.fromUri(uri));
             player.setRepeatMode(repeat ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
             player.setPlaybackParameters(new PlaybackParameters(playbackSpeed));
@@ -143,6 +144,15 @@ public class AudioPlayerManager {
             Log.e(TAG, "Error playing audio", e);
             if (callback != null) callback.onError(e.getMessage());
         }
+    }
+
+    /** Check if audio file exists locally (for prefetch decisions) */
+    public boolean isAudioCachedLocally(int surah, int ayah) {
+        String filename = String.format("%03d%03d.mp3", surah, ayah);
+        File localFile = new File(context.getFilesDir(), "audio/" + currentReciterFolder + "/" + filename);
+        if (localFile.exists() && localFile.length() > 0) return true;
+        localFile = new File(context.getFilesDir(), "audio/" + filename);
+        return localFile.exists() && localFile.length() > 0;
     }
 
     public void pause() {
@@ -169,6 +179,14 @@ public class AudioPlayerManager {
     public void setRepeatMode(boolean repeat) {
         if (player != null) {
             player.setRepeatMode(repeat ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+        }
+    }
+
+    /** Set repeat mode: 0=off, 1=repeat one ayah, 2=repeat surah (handled by caller) */
+    public void setRepeatModeInt(int mode) {
+        if (player != null) {
+            // Only mode 1 uses player-level repeat; mode 2 is managed by ReadingFragment
+            player.setRepeatMode(mode == 1 ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
         }
     }
 

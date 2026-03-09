@@ -6,24 +6,16 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- Top bar: Title + Close + Progress -->
+    <!-- Top bar: Progress (left) + Title (right) + Close -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:layoutDirection="ltr"
         android:gravity="center_vertical"
         android:paddingHorizontal="12dp"
         android:paddingTop="12dp"
         android:paddingBottom="4dp">
-
-        <TextView
-            android:id="@+id/tv_learn_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Learn Mode"
-            android:textSize="18sp"
-            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tv_progress_text"
@@ -32,11 +24,21 @@
             android:textSize="12sp"
             android:layout_marginEnd="8dp" />
 
+        <TextView
+            android:id="@+id/tv_learn_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Learn Mode"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="end" />
+
         <ImageButton
             android:id="@+id/btn_close"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:src="@drawable/ic_delete"
+            android:src="@drawable/ic_close"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Close" />
     </LinearLayout>
@@ -48,7 +50,7 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="12dp" />
 
-    <!-- Scope selector + Reset -->
+    <!-- Scope selector -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -62,15 +64,6 @@
             android:layout_width="0dp"
             android:layout_height="36dp"
             android:layout_weight="1" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_reset"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="Reset"
-            android:textSize="11sp"
-            app:cornerRadius="18dp"
-            style="@style/Widget.Material3.Button.OutlinedButton" />
     </LinearLayout>
 
     <!-- Flashcard area: current word detail -->
@@ -203,7 +196,7 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Filter Chips -->
+    <!-- Filter Chips + Reset -->
     <com.google.android.material.chip.ChipGroup
         android:id="@+id/filter_chips"
         android:layout_width="match_parent"
@@ -234,6 +227,13 @@
             android:layout_height="wrap_content"
             android:text="Known"
             style="@style/Widget.Material3.Chip.Filter" />
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_reset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reset"
+            android:textSize="11sp"
+            style="@style/Widget.Material3.Chip.Assist" />
     </com.google.android.material.chip.ChipGroup>
 
     <!-- Word list (scrollable) -->

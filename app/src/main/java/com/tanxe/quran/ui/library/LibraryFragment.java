@@ -60,6 +60,8 @@ public class LibraryFragment extends Fragment {
 
         rvEditions = view.findViewById(R.id.rv_editions);
         rvEditions.setLayoutManager(new LinearLayoutManager(requireContext()));
+        rvEditions.setHasFixedSize(true);
+        rvEditions.setItemViewCacheSize(15);
 
         tvEmpty = view.findViewById(R.id.tv_empty);
 

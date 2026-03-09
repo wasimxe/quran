@@ -2,9 +2,15 @@ package com.tanxe.quran.data.entity;
 
 import androidx.room.Entity;
 import androidx.room.Ignore;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
-@Entity(tableName = "translations")
+@Entity(tableName = "translations", indices = {
+    @Index(value = {"surahNumber", "ayahNumber", "edition"}),
+    @Index(value = {"edition", "surahNumber"}),
+    @Index(value = {"edition"}),
+    @Index(value = {"language"})
+})
 public class Translation {
     @PrimaryKey(autoGenerate = true)
     public int id;

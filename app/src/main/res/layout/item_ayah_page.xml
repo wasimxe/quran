@@ -8,6 +8,8 @@
     android:paddingVertical="8dp"
     android:clipChildren="false"
     android:clipToPadding="false"
+    android:focusable="false"
+    android:focusableInTouchMode="false"
     android:gravity="center_horizontal">
 
     <!-- Surah header (ayah 1 only) -->

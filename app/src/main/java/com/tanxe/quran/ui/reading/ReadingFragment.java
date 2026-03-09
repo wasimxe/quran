@@ -27,7 +27,6 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.viewpager2.widget.ViewPager2;
 
 import com.tanxe.quran.MainActivity;
 import com.tanxe.quran.R;
@@ -39,7 +38,6 @@ import com.tanxe.quran.data.entity.ReciterInfo;
 import com.tanxe.quran.data.repository.QuranRepository;
 import com.tanxe.quran.theme.ThemeManager;
 import com.tanxe.quran.ui.adapter.AyahPagerAdapter;
-import com.tanxe.quran.ui.adapter.HafizPageAdapter;
 import com.tanxe.quran.ui.adapter.MushafAdapter;
 import com.tanxe.quran.ui.share.ShareCardGenerator;
 import com.tanxe.quran.util.Localization;
@@ -58,10 +56,6 @@ public class ReadingFragment extends Fragment {
     private AyahPagerAdapter pagerAdapter;
     private MushafAdapter mushafAdapter;
 
-    // Hafiz mode
-    private ViewPager2 hafizPager;
-    private HafizPageAdapter hafizAdapter;
-
     // Font size controls
     private static final float MIN_ARABIC_SP = 16f;
     private static final float MAX_ARABIC_SP = 60f;
@@ -75,18 +69,23 @@ public class ReadingFragment extends Fragment {
     private ImageButton btnBookmark;
 
     // Display mode buttons (instant switching)
-    private TextView btnModeArabic, btnModeWbw, btnModeHafiz;
+    private TextView btnModeArabic, btnModeWbw;
 
     // Toolbar
     private ImageButton btnPrevious, btnPlay, btnNext, btnRepeat, btnRandom;
     private TextView btnSpeed, tvReciterName;
     private View floatingToolbar;
 
+    // Static font cache — fonts are expensive to load, share across instances
+    private static Typeface cachedArabicFont;
+    private static Typeface cachedUrduFont;
+    private static String cachedArabicFontFile;
+
     private Typeface arabicFont, urduFont;
     private List<AyahDao.SurahInfo> surahs = new ArrayList<>();
     private int currentSurah = 1;
     private int currentAyah = 1;
-    private String displayMode = "arabic"; // arabic, wbw, hafiz
+    private String displayMode = "arabic"; // arabic, wbw
     private boolean isPlaying = false;
     private boolean continuousPlay = false;
     private int playingSurah = -1;
@@ -95,6 +94,9 @@ public class ReadingFragment extends Fragment {
     // Reading progress tracking
     private long sessionStartTime = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    // Scroll guard: suppress scroll listener updates during programmatic navigation
+    private boolean suppressScrollUpdates = false;
 
     // Fullscreen state
     private boolean isFullscreen = false;
@@ -120,16 +122,28 @@ public class ReadingFragment extends Fragment {
         theme = ThemeManager.getInstance(requireContext());
         audioPlayer = AudioPlayerManager.getInstance(requireContext());
 
-        try {
-            String fontFile = repository.getSelectedArabicFont();
-            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + fontFile);
-        } catch (Exception e) {
-            arabicFont = Typeface.DEFAULT;
+        // Use cached fonts to avoid expensive reloads
+        String fontFile = repository.getSelectedArabicFont();
+        if (cachedArabicFont != null && fontFile.equals(cachedArabicFontFile)) {
+            arabicFont = cachedArabicFont;
+        } else {
+            try {
+                arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + fontFile);
+                cachedArabicFont = arabicFont;
+                cachedArabicFontFile = fontFile;
+            } catch (Exception e) {
+                arabicFont = Typeface.DEFAULT;
+            }
         }
-        try {
-            urduFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/gulzar.ttf");
-        } catch (Exception e) {
-            urduFont = Typeface.DEFAULT;
+        if (cachedUrduFont != null) {
+            urduFont = cachedUrduFont;
+        } else {
+            try {
+                urduFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/gulzar.ttf");
+                cachedUrduFont = urduFont;
+            } catch (Exception e) {
+                urduFont = Typeface.DEFAULT;
+            }
         }
 
         currentArabicSize = repository.getArabicFontSize();
@@ -161,7 +175,8 @@ public class ReadingFragment extends Fragment {
         displayMode = repository.getDisplayMode();
         // Migrate removed modes to arabic
         if (displayMode == null || displayMode.isEmpty() ||
-                "translation".equals(displayMode) || "tafseer".equals(displayMode)) {
+                "translation".equals(displayMode) || "tafseer".equals(displayMode) ||
+                "hafiz".equals(displayMode)) {
             displayMode = "arabic";
             repository.saveDisplayMode("arabic");
         }
@@ -191,14 +206,8 @@ public class ReadingFragment extends Fragment {
         // Display mode buttons
         btnModeArabic = view.findViewById(R.id.btn_mode_arabic);
         btnModeWbw = view.findViewById(R.id.btn_mode_wbw);
-        btnModeHafiz = view.findViewById(R.id.btn_mode_hafiz);
-
         // RecyclerView
         recyclerView = view.findViewById(R.id.rv_ayahs);
-
-        // Hafiz ViewPager2
-        hafizPager = view.findViewById(R.id.vp_hafiz);
-        hafizPager.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
         // Toolbar
         floatingToolbar = view.findViewById(R.id.floating_toolbar);
@@ -232,7 +241,6 @@ public class ReadingFragment extends Fragment {
         // Instant mode switching
         btnModeArabic.setOnClickListener(v -> switchDisplayMode("arabic"));
         btnModeWbw.setOnClickListener(v -> switchDisplayMode("wbw"));
-        btnModeHafiz.setOnClickListener(v -> switchDisplayMode("hafiz"));
 
         // Toolbar buttons
         btnPrevious.setOnClickListener(v -> navigatePrev());
@@ -247,7 +255,7 @@ public class ReadingFragment extends Fragment {
 
         // Reciter selector via long-press on play button (reciter name hidden)
 
-        btnRepeat.setAlpha(repository.getRepeatMode() ? 1.0f : 0.5f);
+        updateRepeatButton(repository.getRepeatModeInt());
 
         // Reading Point button (in toolbar)
         ImageButton btnReadingPoint = view.findViewById(R.id.fab_reading_point);
@@ -276,45 +284,12 @@ public class ReadingFragment extends Fragment {
 
     private void switchDisplayMode(String mode) {
         String oldMode = displayMode;
+        if (mode.equals(oldMode)) return; // No-op if same mode
         displayMode = mode;
         repository.saveDisplayMode(mode);
         updateModeButtons();
 
-        boolean wasHafiz = "hafiz".equals(oldMode);
-        boolean isHafiz = "hafiz".equals(mode);
-
-        if (isHafiz) {
-            // Switch to Hafiz mode — show ViewPager2, hide RecyclerView & audio bar
-            recyclerView.setVisibility(View.GONE);
-            hafizPager.setVisibility(View.VISIBLE);
-            floatingToolbar.setVisibility(View.GONE);
-            if (hafizAdapter == null) {
-                hafizAdapter = new HafizPageAdapter(repository, theme, arabicFont);
-            }
-            hafizPager.setAdapter(hafizAdapter);
-            int pageIndex = hafizAdapter.getPageIndex(currentSurah, currentAyah);
-            hafizPager.setCurrentItem(pageIndex, false);
-            setupHafizPageChangeListener();
-        } else if (wasHafiz) {
-            // Switching away from hafiz — show RecyclerView, hide ViewPager2, restore audio bar
-            hafizPager.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
-            floatingToolbar.setVisibility(View.VISIBLE);
-
-            if ("arabic".equals(mode)) {
-                if (mushafAdapter == null) {
-                    mushafAdapter = new MushafAdapter(repository, theme, arabicFont);
-                    setupMushafListener();
-                }
-                recyclerView.setAdapter(mushafAdapter);
-                recyclerView.scrollToPosition(MushafAdapter.surahToPosition(currentSurah));
-            } else {
-                recyclerView.setAdapter(pagerAdapter);
-                pagerAdapter.setDisplayMode(mode);
-                int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
-                recyclerView.scrollToPosition(pos);
-            }
-        } else if ("arabic".equals(mode) && !"arabic".equals(oldMode)) {
+        if ("arabic".equals(mode) && !"arabic".equals(oldMode)) {
             // Switch to mushaf adapter (surah-level continuous text)
             if (mushafAdapter == null) {
                 mushafAdapter = new MushafAdapter(repository, theme, arabicFont);
@@ -340,27 +315,14 @@ public class ReadingFragment extends Fragment {
         }
     }
 
-    private void setupHafizPageChangeListener() {
-        hafizPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
-            @Override
-            public void onPageSelected(int position) {
-                int[] start = hafizAdapter.getPageStart(position);
-                currentSurah = start[0];
-                currentAyah = start[1];
-                updateHeader();
-            }
-        });
-    }
-
     private void updateModeButtons() {
         // Set localized labels
         String lang = repository.getLanguage();
         btnModeArabic.setText(Localization.get(lang, Localization.MODE_ARABIC));
         btnModeWbw.setText(Localization.get(lang, Localization.MODE_WBW));
-        btnModeHafiz.setText(Localization.get(lang, Localization.MODE_HAFIZ));
 
         // Reset all buttons to inactive style
-        TextView[] allBtns = {btnModeArabic, btnModeWbw, btnModeHafiz};
+        TextView[] allBtns = {btnModeArabic, btnModeWbw};
         for (TextView btn : allBtns) {
             btn.setBackgroundColor(android.graphics.Color.TRANSPARENT);
             btn.setTextColor(theme.getSecondaryTextColor());
@@ -370,7 +332,6 @@ public class ReadingFragment extends Fragment {
         TextView activeBtn;
         switch (displayMode) {
             case "wbw": activeBtn = btnModeWbw; break;
-            case "hafiz": activeBtn = btnModeHafiz; break;
             default: activeBtn = btnModeArabic; break;
         }
         GradientDrawable activeBg = new GradientDrawable();
@@ -385,8 +346,27 @@ public class ReadingFragment extends Fragment {
             @Override
             public void onPlaybackEnded() {
                 handler.post(() -> {
-                    if (continuousPlay || repository.getContinuousPlay()) {
-                        // Use playing position, not scroll position
+                    int repeatMode = repository.getRepeatModeInt();
+
+                    // Repeat ayah mode (mode 1) is handled by ExoPlayer REPEAT_MODE_ONE,
+                    // so onPlaybackEnded won't fire for it. This callback fires for modes 0 and 2.
+
+                    if (repeatMode == 2) {
+                        // Repeat surah: play next ayah in same surah, loop back to ayah 1
+                        int maxAyah = QuranDataParser.SURAH_AYAH_COUNT[playingSurah - 1];
+                        int nextAyah = playingAyah + 1;
+                        if (nextAyah > maxAyah) {
+                            nextAyah = 1; // loop back to first ayah of surah
+                        }
+                        playingAyah = nextAyah;
+                        currentSurah = playingSurah;
+                        currentAyah = playingAyah;
+                        audioPlayer.playAyah(playingSurah, playingAyah, false);
+                        highlightPlayingAyah();
+                        scrollToPlayingAyah();
+                        updateHeader();
+                    } else if (continuousPlay || repository.getContinuousPlay()) {
+                        // Continuous play: advance to next ayah across surahs
                         int pos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
                         if (pos < QuranDataParser.TOTAL_AYAHS - 1) {
                             int nextPos = pos + 1;
@@ -395,7 +375,7 @@ public class ReadingFragment extends Fragment {
                             playingAyah = sa[1];
                             currentSurah = playingSurah;
                             currentAyah = playingAyah;
-                            audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatMode());
+                            audioPlayer.playAyah(playingSurah, playingAyah, false);
                             highlightPlayingAyah();
                             scrollToPlayingAyah();
                             updateHeader();
@@ -436,29 +416,51 @@ public class ReadingFragment extends Fragment {
         }
     }
 
-    /** Scroll to keep the playing ayah visible in whichever adapter is active */
+    /** Scroll to keep the playing ayah visible — stops any ongoing scroll first */
     private void scrollToPlayingAyah() {
-        if ("hafiz".equals(displayMode)) {
-            int pageIndex = hafizAdapter.getPageIndex(playingSurah, playingAyah);
-            hafizPager.setCurrentItem(pageIndex, true);
-        } else if ("arabic".equals(displayMode)) {
-            // In mushaf mode, scroll to the surah containing the playing ayah
+        scrollToPlayingAyahInstant();
+    }
+
+    /** Snap the playing ayah into view — only scrolls if not already visible */
+    private void scrollToPlayingAyahInstant() {
+        if ("arabic".equals(displayMode)) {
             int surahPos = MushafAdapter.surahToPosition(playingSurah);
-            int firstVisible = layoutManager.findFirstVisibleItemPosition();
-            // Only scroll if the surah is not already visible
-            if (surahPos != firstVisible) {
+            if (!isPositionVisible(surahPos)) {
+                suppressScrollUpdates = true;
+                recyclerView.stopScroll();
                 layoutManager.scrollToPositionWithOffset(surahPos, 0);
+                if (playingAyah > 1) {
+                    recyclerView.post(() -> scrollToAyahInMushaf(surahPos, playingAyah));
+                }
+                handler.postDelayed(() -> suppressScrollUpdates = false, 200);
             }
         } else {
             int pos = AyahPagerAdapter.surahAyahToPosition(playingSurah, playingAyah);
-            layoutManager.scrollToPositionWithOffset(pos, 0);
+            if (!isPositionVisible(pos)) {
+                suppressScrollUpdates = true;
+                recyclerView.stopScroll();
+                layoutManager.scrollToPositionWithOffset(pos, 0);
+                handler.postDelayed(() -> suppressScrollUpdates = false, 200);
+            }
         }
+    }
+
+    /** Check if an adapter position is currently visible on screen */
+    private boolean isPositionVisible(int pos) {
+        int first = layoutManager.findFirstVisibleItemPosition();
+        int last = layoutManager.findLastVisibleItemPosition();
+        return first != RecyclerView.NO_POSITION && pos >= first && pos <= last;
     }
 
     private void setupRecyclerView() {
         layoutManager = new LinearLayoutManager(requireContext());
+        layoutManager.setInitialPrefetchItemCount(8);
         recyclerView.setLayoutManager(layoutManager);
-        recyclerView.setItemViewCacheSize(20);
+        recyclerView.setItemViewCacheSize(30);
+        recyclerView.setHasFixedSize(true);
+        recyclerView.getRecycledViewPool().setMaxRecycledViews(0, 25);
+        recyclerView.setDrawingCacheEnabled(true);
+        recyclerView.setDrawingCacheQuality(View.DRAWING_CACHE_QUALITY_LOW);
 
         pagerAdapter = new AyahPagerAdapter(repository, theme, arabicFont, urduFont);
         pagerAdapter.setDisplayMode(displayMode);
@@ -474,17 +476,7 @@ public class ReadingFragment extends Fragment {
         });
         pagerAdapter.setLongPressListener((surah, ayah, position) -> openCompareSheet(surah, ayah, "all"));
 
-        if ("hafiz".equals(displayMode)) {
-            // Start with hafiz mode
-            recyclerView.setVisibility(View.GONE);
-            hafizPager.setVisibility(View.VISIBLE);
-            floatingToolbar.setVisibility(View.GONE);
-            hafizAdapter = new HafizPageAdapter(repository, theme, arabicFont);
-            hafizPager.setAdapter(hafizAdapter);
-            int pageIndex = hafizAdapter.getPageIndex(currentSurah, currentAyah);
-            hafizPager.setCurrentItem(pageIndex, false);
-            setupHafizPageChangeListener();
-        } else if ("arabic".equals(displayMode)) {
+        if ("arabic".equals(displayMode)) {
             // Start with mushaf adapter for arabic mode
             mushafAdapter = new MushafAdapter(repository, theme, arabicFont);
             setupMushafListener();
@@ -498,24 +490,30 @@ public class ReadingFragment extends Fragment {
 
         // Track scroll — update position immediately, defer header UI until idle
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            private int lastReportedFirstVisible = -1;
+
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                // Skip if programmatic navigation is in progress
+                if (suppressScrollUpdates) return;
+
                 int firstVisible = layoutManager.findFirstVisibleItemPosition();
-                if (firstVisible != RecyclerView.NO_POSITION) {
-                    if ("arabic".equals(displayMode)) {
-                        int surah = firstVisible + 1;
-                        if (surah != currentSurah) {
-                            currentSurah = surah;
-                            currentAyah = 1;
-                            updateHeaderLightweight();
-                        }
-                    } else {
-                        int[] sa = AyahPagerAdapter.positionToSurahAyah(firstVisible);
-                        if (sa[0] != currentSurah || sa[1] != currentAyah) {
-                            currentSurah = sa[0];
-                            currentAyah = sa[1];
-                            updateHeaderLightweight();
-                        }
+                if (firstVisible == RecyclerView.NO_POSITION || firstVisible == lastReportedFirstVisible) return;
+                lastReportedFirstVisible = firstVisible;
+
+                if ("arabic".equals(displayMode)) {
+                    int surah = firstVisible + 1;
+                    if (surah != currentSurah) {
+                        currentSurah = surah;
+                        currentAyah = 1;
+                        updateHeaderLightweight();
+                    }
+                } else {
+                    int[] sa = AyahPagerAdapter.positionToSurahAyah(firstVisible);
+                    if (sa[0] != currentSurah || sa[1] != currentAyah) {
+                        currentSurah = sa[0];
+                        currentAyah = sa[1];
+                        updateHeaderLightweight();
                     }
                 }
             }
@@ -524,6 +522,8 @@ public class ReadingFragment extends Fragment {
             public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     updateHeader();
+                    // Save position when scroll stops
+                    repository.saveCurrentPosition(currentSurah, currentAyah);
                 }
             }
         });
@@ -537,7 +537,6 @@ public class ReadingFragment extends Fragment {
         currentTransSize = currentArabicSize * ratio;
         pagerAdapter.updateFontSize(currentArabicSize, currentTransSize);
         if (mushafAdapter != null) mushafAdapter.updateFontSize(currentArabicSize);
-        if (hafizAdapter != null) hafizAdapter.updateFontSize(currentArabicSize);
         repository.setArabicFontSize(currentArabicSize);
         repository.setTranslationFontSize(currentTransSize);
     }
@@ -550,8 +549,7 @@ public class ReadingFragment extends Fragment {
                     public boolean onDoubleTap(@NonNull MotionEvent e) {
                         switch (displayMode) {
                             case "arabic": switchDisplayMode("wbw"); break;
-                            case "wbw": switchDisplayMode("hafiz"); break;
-                            case "hafiz": switchDisplayMode("arabic"); break;
+                            case "wbw": switchDisplayMode("arabic"); break;
                             default: switchDisplayMode("arabic"); break;
                         }
                         return true;
@@ -643,26 +641,77 @@ public class ReadingFragment extends Fragment {
     public void navigateToAyah(int surah, int ayah) {
         currentSurah = surah;
         currentAyah = ayah;
-        if ("hafiz".equals(displayMode)) {
-            if (hafizPager != null) {
-                int pageIndex = hafizAdapter.getPageIndex(surah, ayah);
-                hafizPager.setCurrentItem(pageIndex, true);
-            }
-        } else if (recyclerView != null && layoutManager != null) {
+
+        if (recyclerView != null && layoutManager != null) {
             if ("arabic".equals(displayMode)) {
-                layoutManager.scrollToPositionWithOffset(MushafAdapter.surahToPosition(surah), 0);
+                int surahPos = MushafAdapter.surahToPosition(surah);
+                if (!isPositionVisible(surahPos)) {
+                    suppressScrollUpdates = true;
+                    recyclerView.stopScroll();
+                    layoutManager.scrollToPositionWithOffset(surahPos, 0);
+                    if (ayah > 1) {
+                        recyclerView.post(() -> scrollToAyahInMushaf(surahPos, ayah));
+                    }
+                }
             } else {
                 int pos = AyahPagerAdapter.surahAyahToPosition(surah, ayah);
-                layoutManager.scrollToPositionWithOffset(pos, 0);
+                if (!isPositionVisible(pos)) {
+                    suppressScrollUpdates = true;
+                    recyclerView.stopScroll();
+                    layoutManager.scrollToPositionWithOffset(pos, 0);
+                }
             }
         }
         updateHeader();
-        // Post highlight after layout so scroll completes first
+
+        // Post highlight after layout, then re-enable scroll listener
         if (recyclerView != null) {
-            recyclerView.post(this::highlightActiveAyah);
+            recyclerView.post(() -> {
+                highlightActiveAyah();
+                handler.postDelayed(() -> suppressScrollUpdates = false, 200);
+            });
         } else {
             highlightActiveAyah();
+            suppressScrollUpdates = false;
         }
+    }
+
+    /** In mushaf mode, scroll within the surah item to make the target ayah visible */
+    private void scrollToAyahInMushaf(int surahPos, int ayah) {
+        scrollToAyahInMushafRetry(surahPos, ayah, 0);
+    }
+
+    private void scrollToAyahInMushafRetry(int surahPos, int ayah, int retryCount) {
+        if (retryCount > 3) return; // give up after 3 retries
+        View surahView = layoutManager.findViewByPosition(surahPos);
+        if (surahView == null) {
+            recyclerView.post(() -> scrollToAyahInMushafRetry(surahPos, ayah, retryCount + 1));
+            return;
+        }
+        TextView tvText = surahView.findViewById(R.id.tv_mushaf_text);
+        if (tvText == null || tvText.getLayout() == null) {
+            recyclerView.post(() -> scrollToAyahInMushafRetry(surahPos, ayah, retryCount + 1));
+            return;
+        }
+        // Find the ayah marker " (ayah) " with spaces to avoid false matches like (1) matching (10)
+        String text = tvText.getText().toString();
+        String marker = " (" + ayah + ") ";
+        int idx = text.indexOf(marker);
+        if (idx < 0) {
+            // Fallback: try without trailing space (last ayah might not have trailing space)
+            marker = " (" + ayah + ")";
+            idx = text.indexOf(marker);
+        }
+        if (idx < 0) return;
+        // Get y position of the ayah text (go back to find the start of the ayah text before the marker)
+        android.text.Layout layout = tvText.getLayout();
+        int line = layout.getLineForOffset(idx);
+        // Go back a few lines to show the ayah start, not just the marker
+        int targetLine = Math.max(0, line - 2);
+        int lineTop = layout.getLineTop(targetLine);
+        // Scroll so the ayah appears at the top of the RecyclerView
+        int targetY = surahView.getTop() + tvText.getTop() + lineTop;
+        recyclerView.scrollBy(0, targetY);
     }
 
     private void navigateNext() {
@@ -676,7 +725,18 @@ public class ReadingFragment extends Fragment {
         }
         currentSurah = nextSurah;
         currentAyah = nextAyah;
-        navigateToAyah(currentSurah, currentAyah);
+
+        // If audio is playing, advance playback to the new ayah
+        if (isPlaying) {
+            playingSurah = currentSurah;
+            playingAyah = currentAyah;
+            audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatModeInt() == 1);
+            highlightPlayingAyah();
+            scrollToPlayingAyahInstant();
+            updateHeader();
+        } else {
+            navigateToAyah(currentSurah, currentAyah);
+        }
     }
 
     private void navigatePrev() {
@@ -689,13 +749,24 @@ public class ReadingFragment extends Fragment {
         }
         currentSurah = prevSurah;
         currentAyah = prevAyah;
-        navigateToAyah(currentSurah, currentAyah);
+
+        // If audio is playing, advance playback to the new ayah
+        if (isPlaying) {
+            playingSurah = currentSurah;
+            playingAyah = currentAyah;
+            audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatModeInt() == 1);
+            highlightPlayingAyah();
+            scrollToPlayingAyahInstant();
+            updateHeader();
+        } else {
+            navigateToAyah(currentSurah, currentAyah);
+        }
     }
 
     private void highlightActiveAyah() {
         if ("arabic".equals(displayMode) && mushafAdapter != null) {
             mushafAdapter.setHighlightedAyah(currentSurah, currentAyah);
-        } else if (!"hafiz".equals(displayMode)) {
+        } else {
             int pos = AyahPagerAdapter.surahAyahToPosition(currentSurah, currentAyah);
             pagerAdapter.setPlayingPosition(pos);
         }
@@ -774,7 +845,7 @@ public class ReadingFragment extends Fragment {
 
             playingSurah = currentSurah;
             playingAyah = currentAyah;
-            audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatMode());
+            audioPlayer.playAyah(playingSurah, playingAyah, repository.getRepeatModeInt() == 1);
             btnPlay.setImageResource(R.drawable.ic_pause);
             isPlaying = true;
 
@@ -783,10 +854,28 @@ public class ReadingFragment extends Fragment {
     }
 
     private void toggleRepeat() {
-        boolean repeat = !repository.getRepeatMode();
-        repository.setRepeatMode(repeat);
-        btnRepeat.setAlpha(repeat ? 1.0f : 0.5f);
-        audioPlayer.setRepeatMode(repeat);
+        // Cycle: 0 (off) → 1 (repeat ayah) → 2 (repeat surah) → 0 (off)
+        int mode = (repository.getRepeatModeInt() + 1) % 3;
+        repository.setRepeatModeInt(mode);
+        audioPlayer.setRepeatModeInt(mode);
+        updateRepeatButton(mode);
+    }
+
+    private void updateRepeatButton(int mode) {
+        switch (mode) {
+            case 1: // Repeat ayah
+                btnRepeat.setImageResource(R.drawable.ic_repeat_one);
+                btnRepeat.setAlpha(1.0f);
+                break;
+            case 2: // Repeat surah
+                btnRepeat.setImageResource(R.drawable.ic_repeat);
+                btnRepeat.setAlpha(1.0f);
+                break;
+            default: // Off
+                btnRepeat.setImageResource(R.drawable.ic_repeat);
+                btnRepeat.setAlpha(0.35f);
+                break;
+        }
     }
 
     private void cycleSpeed() {
@@ -817,7 +906,7 @@ public class ReadingFragment extends Fragment {
                             audioPlayer.setReciter(folders[which]);
                             updateReciterName();
                             if (isPlaying) {
-                                audioPlayer.playAyah(currentSurah, currentAyah, repository.getRepeatMode());
+                                audioPlayer.playAyah(currentSurah, currentAyah, repository.getRepeatModeInt() == 1);
                             }
                         })
                         .show();
@@ -907,7 +996,7 @@ public class ReadingFragment extends Fragment {
                         currentAyah = ayah;
                         playingSurah = surah;
                         playingAyah = ayah;
-                        audioPlayer.playAyah(surah, ayah, repository.getRepeatMode());
+                        audioPlayer.playAyah(surah, ayah, repository.getRepeatModeInt() == 1);
                         btnPlay.setImageResource(R.drawable.ic_pause);
                         isPlaying = true;
                         continuousPlay = true;
@@ -1048,11 +1137,15 @@ public class ReadingFragment extends Fragment {
         insetsController.setSystemBarsBehavior(
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
 
+        // Hide ruku markers in fullscreen
+        if (pagerAdapter != null) pagerAdapter.setShowRukuMarkers(false);
+        if (mushafAdapter != null) mushafAdapter.setShowRukuMarkers(false);
+
         btnExitFullscreen.setVisibility(View.VISIBLE);
         fullscreenBackCallback.setEnabled(true);
     }
 
-    private void exitFullscreen() {
+    public void exitFullscreen() {
         if (!isFullscreen || getActivity() == null) return;
         isFullscreen = false;
 
@@ -1073,6 +1166,10 @@ public class ReadingFragment extends Fragment {
         // Restore status/nav bar colors only (no full theme refresh)
         requireActivity().getWindow().setStatusBarColor(theme.getBackgroundColor());
         requireActivity().getWindow().setNavigationBarColor(theme.getSurfaceColor());
+
+        // Restore ruku markers
+        if (pagerAdapter != null) pagerAdapter.setShowRukuMarkers(true);
+        if (mushafAdapter != null) mushafAdapter.setShowRukuMarkers(true);
 
         btnExitFullscreen.setVisibility(View.GONE);
         fullscreenBackCallback.setEnabled(false);
@@ -1163,12 +1260,18 @@ public class ReadingFragment extends Fragment {
         if (btnFontIncrease != null) btnFontIncrease.setTextColor(theme.getAccentColor());
         if (tvReciterName != null) tvReciterName.setTextColor(theme.getSecondaryTextColor());
 
-        // Reload arabic font
-        try {
-            String fontFile = repository.getSelectedArabicFont();
-            arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + fontFile);
-        } catch (Exception e) {
-            arabicFont = Typeface.DEFAULT;
+        // Reload arabic font (use cache)
+        String fontFile2 = repository.getSelectedArabicFont();
+        if (cachedArabicFont != null && fontFile2.equals(cachedArabicFontFile)) {
+            arabicFont = cachedArabicFont;
+        } else {
+            try {
+                arabicFont = Typeface.createFromAsset(requireContext().getAssets(), "fonts/" + fontFile2);
+                cachedArabicFont = arabicFont;
+                cachedArabicFontFile = fontFile2;
+            } catch (Exception e) {
+                arabicFont = Typeface.DEFAULT;
+            }
         }
 
         // Refresh adapters (clear caches since theme colors changed)
@@ -1180,10 +1283,6 @@ public class ReadingFragment extends Fragment {
         if (mushafAdapter != null) {
             mushafAdapter.setArabicFont(arabicFont);
             mushafAdapter.notifyDataSetChanged();
-        }
-        if (hafizAdapter != null) {
-            hafizAdapter.setArabicFont(arabicFont);
-            hafizAdapter.notifyDataSetChanged();
         }
     }
 }

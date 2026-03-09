@@ -80,6 +80,9 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
     // Cached localized ruku labels
     private String cachedRukuLabel, cachedSurahLabel, cachedJuzLabel;
 
+    // Whether to show ruku end markers (hidden in fullscreen mode)
+    private boolean showRukuMarkers = true;
+
     private static final int TOTAL_AYAHS = QuranDataParser.TOTAL_AYAHS;
 
     // Pre-computed position offset table for O(1) surah lookup
@@ -198,13 +201,22 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         this.arabicFont = font;
     }
 
-    /** Set the currently-playing position and highlight it (triggers rebind) */
+    public void setShowRukuMarkers(boolean show) {
+        if (this.showRukuMarkers != show) {
+            this.showRukuMarkers = show;
+            notifyDataSetChanged();
+        }
+    }
+
+    /** Set the currently-playing position and highlight it.
+     *  Only rebinds items that are likely visible to avoid scroll-jump artifacts. */
     public void setPlayingPosition(int position) {
         int oldPos = playingPosition;
         playingPosition = position;
-        if (oldPos >= 0) notifyItemChanged(oldPos);
-        if (position >= 0) notifyItemChanged(position);
-
+        // Only rebind old/new positions — RecyclerView handles off-screen items automatically
+        // via onBindViewHolder when they scroll into view.
+        if (oldPos >= 0 && oldPos != position) notifyItemChanged(oldPos, "highlight");
+        if (position >= 0) notifyItemChanged(position, "highlight");
     }
 
     /** Update internal playing position without triggering rebind — caller handles view updates directly */
@@ -236,6 +248,18 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
     public AyahViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_ayah_page, parent, false);
         return new AyahViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull AyahViewHolder holder, int position, @NonNull java.util.List<Object> payloads) {
+        if (!payloads.isEmpty() && "highlight".equals(payloads.get(0))) {
+            // Partial rebind: only update background/text color for highlight change
+            boolean isPlaying = (position == playingPosition);
+            holder.container.setBackgroundColor(isPlaying ? cBgPlaying : cBg);
+            holder.tvArabic.setTextColor(isPlaying ? cArabicPlaying : cArabic);
+            return;
+        }
+        onBindViewHolder(holder, position);
     }
 
     @Override
@@ -304,7 +328,9 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
                 // Proactively preload adjacent surahs for smooth transitions
                 ensureSurahPreloaded(surah + 1);
                 ensureSurahPreloaded(surah + 2);
+                ensureSurahPreloaded(surah + 3);
                 ensureSurahPreloaded(surah - 1);
+                ensureSurahPreloaded(surah - 2);
                 return;
             }
         }
@@ -375,7 +401,11 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
                 bindContentViews(holder, mode, fContent, fTafseer, fWords, transFont, tafsFont, surah, ayah);
 
                 if (isRukuEnd) {
-                    bindRukuMarker(holder, surah, ayah);
+                    if (showRukuMarkers) {
+                        bindRukuMarker(holder, surah, ayah);
+                    } else {
+                        bindRukuSymbolOnly(holder);
+                    }
                 }
             });
         });
@@ -425,7 +455,11 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         }
 
         if (data.isRukuEnd) {
-            bindRukuMarker(holder, surah, ayah);
+            if (showRukuMarkers) {
+                bindRukuMarker(holder, surah, ayah);
+            } else {
+                bindRukuSymbolOnly(holder);
+            }
         }
     }
 
@@ -498,6 +532,11 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         holder.tvRukuMarker.setTextColor(cAccent);
     }
 
+    /** No-op: the ع ruku symbol is already in the Arabic text */
+    private void bindRukuSymbolOnly(AyahViewHolder holder) {
+        // Existing ع in ayah text is sufficient
+    }
+
     /** Ensure a surah's bind data is preloaded. No-op if already cached or loading. */
     private void ensureSurahPreloaded(int surah) {
         if (surah < 1 || surah > 114) return;
@@ -544,8 +583,8 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
                 }
 
                 synchronized (preloadLock) {
-                    // Evict oldest entries if cache is full (keep max 7 surahs)
-                    while (preloadedSurahs.size() >= 7) {
+                    // Evict oldest entries if cache is full (keep max 15 surahs)
+                    while (preloadedSurahs.size() >= 15) {
                         preloadedSurahs.removeAt(0);
                     }
                     preloadedSurahs.put(surah, map);
@@ -562,7 +601,9 @@ public class AyahPagerAdapter extends RecyclerView.Adapter<AyahPagerAdapter.Ayah
         int surah = sa[0];
         ensureSurahPreloaded(surah);
         ensureSurahPreloaded(surah + 1);
+        ensureSurahPreloaded(surah + 2);
         if (surah > 1) ensureSurahPreloaded(surah - 1);
+        if (surah > 2) ensureSurahPreloaded(surah - 2);
     }
 
     @Override

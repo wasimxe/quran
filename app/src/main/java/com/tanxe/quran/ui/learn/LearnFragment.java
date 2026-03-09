@@ -56,7 +56,6 @@ public class LearnFragment extends DialogFragment {
     private LinearProgressIndicator progressLearn;
     private ImageButton btnClose;
     private Spinner spinnerScope;
-    private MaterialButton btnReset;
     private CardView cardFlashcard;
     private TextView tvLearnArabic, tvLearnFreq, tvLearnTranslation;
     private MaterialButton btnReveal, btnKnow, btnDontKnow;
@@ -121,12 +120,15 @@ public class LearnFragment extends DialogFragment {
     }
 
     private void initViews(View view) {
+        // Force top bar LTR so progress stays on physical left regardless of RTL
+        View topBar = ((ViewGroup) view.findViewById(R.id.learn_container)).getChildAt(0);
+        if (topBar != null) topBar.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+
         tvLearnTitle = view.findViewById(R.id.tv_learn_title);
         tvProgressText = view.findViewById(R.id.tv_progress_text);
         progressLearn = view.findViewById(R.id.progress_learn);
         btnClose = view.findViewById(R.id.btn_close);
         spinnerScope = view.findViewById(R.id.spinner_scope);
-        btnReset = view.findViewById(R.id.btn_reset);
         cardFlashcard = view.findViewById(R.id.card_flashcard);
         tvLearnArabic = view.findViewById(R.id.tv_learn_arabic);
         tvLearnFreq = view.findViewById(R.id.tv_learn_freq);
@@ -139,7 +141,23 @@ public class LearnFragment extends DialogFragment {
         btnSearchWord = view.findViewById(R.id.btn_search_word);
         tvWordIndex = view.findViewById(R.id.tv_word_index);
         rvWordList = view.findViewById(R.id.rv_word_list);
-        rvWordList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        LinearLayoutManager llm = new LinearLayoutManager(requireContext());
+        rvWordList.setLayoutManager(llm);
+        rvWordList.setHasFixedSize(true);
+        rvWordList.setItemViewCacheSize(20);
+
+        // Lazy load more items when scrolling near bottom
+        rvWordList.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                if (dy <= 0 || wordListAdapter == null || wordListAdapter.isAllLoaded()) return;
+                int lastVisible = llm.findLastVisibleItemPosition();
+                int totalItems = wordListAdapter.getItemCount();
+                if (lastVisible >= totalItems - 20) {
+                    wordListAdapter.loadMore();
+                }
+            }
+        });
 
         if (arabicFont != null) {
             tvLearnArabic.setTypeface(arabicFont);
@@ -177,8 +195,9 @@ public class LearnFragment extends DialogFragment {
         btnNextWord.setOnClickListener(v -> navigateWord(1));
         btnSearchWord.setOnClickListener(v -> searchCurrentWordInQuran());
 
-        // Reset button
-        btnReset.setOnClickListener(v -> confirmReset());
+        // Reset chip (in filter area)
+        com.google.android.material.chip.Chip chipReset = view.findViewById(R.id.chip_reset);
+        chipReset.setOnClickListener(v -> confirmReset());
 
         // Filter chips
         chipAll = view.findViewById(R.id.chip_all);
@@ -277,11 +296,7 @@ public class LearnFragment extends DialogFragment {
             if (allWords == null) allWords = new ArrayList<>();
             Log.d("LearnFragment", "loadWords: found " + allWords.size() + " words");
 
-            // Build base form map for similar words lookup
-            Log.d("LearnFragment", "buildBaseFormMap start");
-            buildBaseFormMap();
-            Log.d("LearnFragment", "buildBaseFormMap done, getActivity=" + (getActivity() != null));
-
+            // Show UI immediately, defer base form map build for similar words
             if (getActivity() != null) {
                 requireActivity().runOnUiThread(() -> {
                     Log.d("LearnFragment", "UI thread: setting up adapter, words=" + allWords.size());
@@ -319,6 +334,12 @@ public class LearnFragment extends DialogFragment {
                     currentWordIndex = 0;
                     showCurrentWord();
                     updateProgress();
+
+                    // Build base form map in background (deferred — not needed for initial display)
+                    repository.getExecutor().execute(() -> {
+                        buildBaseFormMap();
+                        Log.d("LearnFragment", "buildBaseFormMap done (deferred)");
+                    });
                 });
             }
         });
@@ -606,7 +627,8 @@ public class LearnFragment extends DialogFragment {
     private void localizeLabels() {
         String lang = repository.getLanguage();
         tvLearnTitle.setText(Localization.get(lang, Localization.LEARN_MODE));
-        btnReset.setText(Localization.get(lang, Localization.RESET));
+        com.google.android.material.chip.Chip chipReset = getView() != null ? getView().findViewById(R.id.chip_reset) : null;
+        if (chipReset != null) chipReset.setText(Localization.get(lang, Localization.RESET));
         btnDontKnow.setText("\u2717 " + Localization.get(lang, Localization.DONT_KNOW));
         btnKnow.setText("\u2713 " + Localization.get(lang, Localization.KNOW));
         btnPrevWord.setText("\u25C4 " + Localization.get(lang, Localization.PREV));

@@ -20,17 +20,32 @@ public class App extends Application {
         super.onCreate();
         instance = this;
 
-        // Initialize theme
+        // Initialize theme (fast, just reads SharedPrefs)
         ThemeManager.getInstance(this).applyTheme();
 
-        // Initialize reciters in background
+        // Pre-warm repository singleton (creates DB instance early)
         QuranRepository repo = QuranRepository.getInstance(this);
+
+        // Defer all non-critical init to background
         repo.getExecutor().execute(() -> {
+            // Pre-warm surah list cache for instant header display
+            repo.getAllSurahs();
+
+            // Pre-warm ayah cache for the initial position surahs (faster first render)
+            int[] pos = repo.getCurrentPosition();
+            int startSurah = Math.max(1, pos[0] - 1);
+            int endSurah = Math.min(114, pos[0] + 2);
+            for (int s = startSurah; s <= endSurah; s++) {
+                repo.getAyahsBySurah(s);
+            }
+
             repo.initReciters();
             // Fetch edition catalog if not yet loaded
             if (!repo.isEditionCatalogLoaded()) {
-                repo.fetchAndCacheEditions();
-                repo.setEditionCatalogLoaded(true);
+                try {
+                    repo.fetchAndCacheEditions();
+                    repo.setEditionCatalogLoaded(true);
+                } catch (Exception ignored) {}
             }
         });
 

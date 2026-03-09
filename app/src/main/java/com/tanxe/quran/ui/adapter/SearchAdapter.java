@@ -16,7 +16,7 @@ import com.tanxe.quran.theme.ThemeManager;
 import java.util.List;
 
 public class SearchAdapter extends RecyclerView.Adapter<SearchAdapter.ViewHolder> {
-    private final List<Ayah> results;
+    private List<Ayah> results;
     private final ThemeManager theme;
     private final OnResultClick listener;
 
@@ -57,6 +57,12 @@ public class SearchAdapter extends RecyclerView.Adapter<SearchAdapter.ViewHolder
         }
 
         holder.itemView.setOnClickListener(v -> listener.onClick(ayah));
+    }
+
+    /** Update results without recreating the adapter */
+    public void updateResults(List<Ayah> newResults) {
+        this.results = newResults;
+        notifyDataSetChanged();
     }
 
     @Override
