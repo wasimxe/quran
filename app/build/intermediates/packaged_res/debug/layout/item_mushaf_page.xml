@@ -55,7 +55,7 @@
         android:textAlignment="gravity"
         android:breakStrategy="high_quality"
         android:justificationMode="inter_word"
-        android:lineSpacingMultiplier="1.15"
+        android:lineSpacingMultiplier="1.0"
         android:lineSpacingExtra="0dp"
         android:includeFontPadding="true"
         android:elegantTextHeight="true"

@@ -32,12 +32,12 @@
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_compare.xml"
     },
     {
-        "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_search_bg.xml.flat",
-        "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\search_bg.xml"
-    },
-    {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_ic_my_location.xml.flat",
         "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\ic_my_location.xml"
+    },
+    {
+        "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_search_bg.xml.flat",
+        "source": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-main-53:\\drawable\\search_bg.xml"
     },
     {
         "merged": "C:\\Users\\TanxeStudio\\.gradle\\daemon\\8.0\\com.tanxe.quran.app-merged_res-51:\\drawable_bg_language_chip.xml.flat",
